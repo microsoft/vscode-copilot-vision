@@ -396,3 +396,11 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Other Misc
+out
+dist
+node_modules
+.vscode-test/
+.DS_Store
+.env

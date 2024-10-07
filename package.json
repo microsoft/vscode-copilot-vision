@@ -1,0 +1,64 @@
+{
+	"name": "chat-sample",
+	"publisher": "justin-dev",
+	"displayName": "Copilot Chat Vision Sample",
+	"description": "Chat extension that utilizes the Copilot Chat API to provide vision capabilities.",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/justschen/copilot-chat-vision-sample"
+	},
+	"enabledApiProposals": [
+		"chatReferenceBinaryData"
+	],
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.92.0"
+	},
+	"categories": [
+		"AI",
+		"Chat"
+	],
+	"activationEvents": [],
+	"contributes": {
+		"chatParticipants": [
+			{
+				"id": "chat-sample.vision",
+				"fullName": "Vision",
+				"name": "vision",
+				"description": "Attach an image to get started!",
+				"isSticky": false,
+				"commands": []
+			}
+		],
+		"commands": [
+			{
+				"command": "extension.showHtmlPreview",
+				"title": "Show HTML Preview"
+			}
+		]
+	},
+	"main": "./out/extension.js",
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"lint": "eslint \"src/**/*.ts\"",
+		"watch": "tsc -watch -p ./"
+	},
+	"dependencies": {
+		"@azure/identity": "^4.4.1",
+		"@vscode/prompt-tsx": "^0.2.8-alpha",
+		"axios": "^1.7.7",
+		"dotenv": "^16.4.5",
+		"html2canvas": "^1.4.1",
+		"node-fetch": "^3.3.2",
+		"openai": "^4.67.1"
+	},
+	"devDependencies": {
+		"@types/node": "^20.5.9",
+		"@types/vscode": "1.90.0",
+		"@typescript-eslint/eslint-plugin": "^7.14.0",
+		"@typescript-eslint/parser": "^7.14.0",
+		"eslint": "^8.26.0",
+		"typescript": "^5.5.2"
+	}
+}
