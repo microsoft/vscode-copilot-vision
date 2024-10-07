@@ -34,6 +34,10 @@
 			{
 				"command": "extension.showHtmlPreview",
 				"title": "Show HTML Preview"
+			},
+			{
+				"command": "troubleshootWithVision",
+				"title": "Troubleshoot with Vision"
 			}
 		]
 	},
@@ -51,10 +55,12 @@
 		"dotenv": "^16.4.5",
 		"html2canvas": "^1.4.1",
 		"node-fetch": "^3.3.2",
-		"openai": "^4.67.1"
+		"openai": "^4.67.1",
+		"screenshot-desktop": "^1.15.0"
 	},
 	"devDependencies": {
 		"@types/node": "^20.5.9",
+		"@types/screenshot-desktop": "^1.12.3",
 		"@types/vscode": "1.90.0",
 		"@typescript-eslint/eslint-plugin": "^7.14.0",
 		"@typescript-eslint/parser": "^7.14.0",

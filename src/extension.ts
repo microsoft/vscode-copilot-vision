@@ -2,16 +2,20 @@ import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import { ChatVariablesCollection } from './chatVariablesCollective';
-import { AzureOpenAI } from "openai";  
-import { DefaultAzureCredential } from "@azure/identity";  
+import { AzureOpenAI } from "openai";
+import { DefaultAzureCredential } from "@azure/identity";
 import { Models } from 'openai/resources/models.mjs';
+import screenshot from 'screenshot-desktop';
+import * as path from 'path';
+import * as os from 'os';
+import { URI } from '@vscode/prompt-tsx/dist/base/util/vs/common/uri';
 
 dotenv.config();
 
 const VISION_PARTICIPANT_ID = 'chat-sample.vision';
 
-const endpoint = process.env["AZURE_ENDPOINT"] || "https://vscode-openai.openai.azure.com/";  
-const apiVersion = "2024-05-01-preview";  
+const endpoint = process.env["AZURE_ENDPOINT"] || "https://vscode-openai.openai.azure.com/";
+const apiVersion = "2024-05-01-preview";
 const deployment = "gpt-4o-mini"; // This must match your deployment name
 const AZURE_API_KEY = process.env["AZURE_API_KEY"];
 
@@ -26,11 +30,12 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // Use gpt-4o since it is fast and high quality. gpt-3.5-turbo and gpt-4 are also available.
 const MODEL_SELECTOR: vscode.LanguageModelChatSelector = { vendor: 'copilot', family: 'gpt-4o' };
+let imgPath: string | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 
-	
-	  const disposable = vscode.commands.registerCommand('extension.showHtmlPreview', () => {
+
+    const disposable = vscode.commands.registerCommand('extension.showHtmlPreview', () => {
         const panel = vscode.window.createWebviewPanel(
             'htmlPreview', // Identifies the type of the webview. Used internally
             'HTML Preview', // Title of the panel displayed to the user
@@ -41,112 +46,138 @@ export function activate(context: vscode.ExtensionContext) {
         );
 
         // Set the HTML content for the webview
-      	const editor = vscode.window.activeTextEditor;
-		if (editor) {
-			const htmlContent = editor.document.getText();
-			panel.webview.html = getWebviewContent(htmlContent);
-		} else {
-			vscode.window.showErrorMessage('No active text editor found.');
-		}
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+            const htmlContent = editor.document.getText();
+            panel.webview.html = getWebviewContent(htmlContent);
+        } else {
+            vscode.window.showErrorMessage('No active text editor found.');
+        }
     });
 
     context.subscriptions.push(disposable);
+
+    context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
+        imgPath = await takeScreenshot();
+        if (imgPath) {
+            const chatRequest = {
+                input: '@vision troubleshoot my current VS Code setup',
+                attachments: [
+                    {
+                        type: 'image',
+                        path: imgPath
+                    }
+                ]
+            };
+            await vscode.commands.executeCommand('workbench.action.chat.open', chatRequest.input);
+        } else {
+            console.error('Failed to take screenshot.');
+        }
+    }));
 
     // Define a chat handler
     const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
         // To talk to an LLM in your subcommand handler implementation, your
         // extension can use VS Code's `requestChatAccess` API to access the Copilot API.
         // The GitHub Copilot Chat extension implements this provider.
-
-		const chatVariables = new ChatVariablesCollection(request.references);
-		stream.progress('Sending request to OpenAI...');
-
-		if (!chatVariables.hasVariables()) {
-			stream.markdown('I need a picture to generate a response.');
-			return { metadata: { command: '' } };
-		}
-
-		let base64String = '';
+        let base64String = '';
         let mimeType = 'image/png';
-		const content: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string, detail?: string } }> = [
-				{ type: 'text', text: request.prompt },
-			];
+        const content: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string, detail?: string } }> = [
+            { type: 'text', text: request.prompt },
+        ];
+        if (imgPath && request.prompt === 'troubleshoot my current VS Code setup') {
+            const resource = URI.from({ scheme: 'file', path: imgPath });
+            const fileData = await vscode.workspace.fs.readFile(resource);
+            base64String = Buffer.from(fileData).toString('base64');
+            stream.progress('Attached a screenshot of your current VS Code setup.');
+            content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}` } });
+        } else if (imgPath) {
+            stream.markdown(`The file ${imgPath} is not an image.`);
+            return { metadata: { command: '' } };
+        }
+        const chatVariables = new ChatVariablesCollection(request.references);
+        stream.progress('Sending request to OpenAI...');
 
-			for (const { uniqueName: variableName, value: variableValue } of chatVariables) {
-				// URI in cases of drag and drop or from file already in the workspace
-				if (variableValue instanceof vscode.Uri) {
-					const fileExtension = variableValue.path.split('.').pop()?.toLowerCase();
-					const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
+        if (!content.length && !chatVariables.hasVariables()) {
+            stream.markdown('I need a picture to generate a response.');
+            return { metadata: { command: '' } };
+        }
 
-					if (fileExtension && imageExtensions.includes(fileExtension)) {
-						const fileData = await vscode.workspace.fs.readFile(variableValue);
-						base64String = Buffer.from(fileData).toString('base64');
-                        content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`} });
-					} else {
-						stream.markdown(`The file ${variableName} is not an image.`);
-						return { metadata: { command: '' } };
-					}
+        for (const { uniqueName: variableName, value: variableValue } of chatVariables) {
+            // URI in cases of drag and drop or from file already in the workspace
+            if (variableValue instanceof vscode.Uri) {
+                const fileExtension = variableValue.path.split('.').pop()?.toLowerCase();
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
 
-				// Object in cases of copy and paste (or from quick pick)
-				} else if (typeof variableValue === 'object') {
-					const variable = variableValue as vscode.ChatReferenceBinaryData;
-                    mimeType = variable.mimeType;
-					const buffer = await variable.data();
-					base64String = Buffer.from(buffer).toString('base64');
-					content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`} });
-				}
-			}
+                if (fileExtension && imageExtensions.includes(fileExtension)) {
+                    const fileData = await vscode.workspace.fs.readFile(variableValue);
+                    base64String = Buffer.from(fileData).toString('base64');
+                    content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}` } });
+                } else {
+                    stream.markdown(`The file ${variableName} is not an image.`);
+                    return { metadata: { command: '' } };
+                }
 
-		try {	
-			const openAIRequest = {
-				model: 'gpt-4o', // Specify the OpenAI model you want to use
-				messages: [ { role: 'user', content },]
-			};
+                // Object in cases of copy and paste (or from quick pick)
+            } else if (typeof variableValue === 'object') {
+                const variable = variableValue as vscode.ChatReferenceBinaryData;
+                mimeType = variable.mimeType;
+                const buffer = await variable.data();
+                base64String = Buffer.from(buffer).toString('base64');
+                content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}` } });
+            }
+        }
 
-			// Send the request to OpenAI
-			const response = await axios.post(OPENAI_API_URL, openAIRequest, {
-				headers: {
-					'Authorization': `Bearer ${OPENAI_API_KEY}`,
-					'Content-Type': 'application/json'
-				}
-			});
+        try {
+            const openAIRequest = {
+                model: 'gpt-4o', // Specify the OpenAI model you want to use
+                messages: [{ role: 'user', content },]
+            };
 
-			for (const choice of response.data.choices) {
-				stream.markdown(choice.message.content);
-			}
+            // Send the request to OpenAI
+            const response = await axios.post(OPENAI_API_URL, openAIRequest, {
+                headers: {
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-			// // Initialize the AzureOpenAI client with Entra ID (Azure AD) authentication
-			// const client = new AzureOpenAI({ endpoint, apiVersion, deployment, apiKey: AZURE_API_KEY});  
-		
-			// // EXAMPLE OF USING AZURE OPENAI
-			// const result = await client.chat.completions.create({
-			// 	messages: [
-			// 		{ role: 'user', content: request.prompt },
-			// 		{ role: 'user', content: [{type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`, detail: 'auto'}}] }
-			// 	],
-			// 	model: deployment, // Gpt4
-			// 	max_tokens: 8192,
-			// 	temperature: 0.7,
-			// 	top_p: 0.95,
-			// 	frequency_penalty: 0,
-			// 	presence_penalty: 0
-			// });
+            for (const choice of response.data.choices) {
+                stream.markdown(choice.message.content);
+            }
 
-			// for (const choice of result.choices) {
-			// 	if (choice.message.content) {
-			// 		stream.markdown(choice.message.content);
-			// 	}
-			// }	
-			
-	
-		} catch(err) {
-			handleError(logger, err, stream);
-		}
+            // // Initialize the AzureOpenAI client with Entra ID (Azure AD) authentication
+            // const client = new AzureOpenAI({ endpoint, apiVersion, deployment, apiKey: AZURE_API_KEY});  
 
-		return { metadata: { command: '' } };
+            // // EXAMPLE OF USING AZURE OPENAI
+            // const result = await client.chat.completions.create({
+            // 	messages: [
+            // 		{ role: 'user', content: request.prompt },
+            // 		{ role: 'user', content: [{type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`, detail: 'auto'}}] }
+            // 	],
+            // 	model: deployment, // Gpt4
+            // 	max_tokens: 8192,
+            // 	temperature: 0.7,
+            // 	top_p: 0.95,
+            // 	frequency_penalty: 0,
+            // 	presence_penalty: 0
+            // });
+
+            // for (const choice of result.choices) {
+            // 	if (choice.message.content) {
+            // 		stream.markdown(choice.message.content);
+            // 	}
+            // }	
+
+
+        } catch (err) {
+            handleError(logger, err, stream);
+        }
+
+        return { metadata: { command: '' } };
     };
 
-	const vision = vscode.chat.createChatParticipant(VISION_PARTICIPANT_ID, handler);
+    const vision = vscode.chat.createChatParticipant(VISION_PARTICIPANT_ID, handler);
     vision.iconPath = vscode.Uri.joinPath(context.extensionUri, 'vscode-logo.png');
     // vision.followupProvider = {
     //     provideFollowups(result: ICatChatResult, context: vscode.ChatContext, token: vscode.CancellationToken) {
@@ -187,7 +218,7 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
     // - user consent not given
     // - quote limits exceeded
     logger.logError(err);
-    
+
     if (err instanceof vscode.LanguageModelError) {
         console.log(err.message, err.code, err.cause);
         if (err.cause instanceof Error && err.cause.message.includes('off_topic')) {
@@ -349,3 +380,15 @@ function getWebviewContent(htmlContent: string): string {
 }
 
 export function deactivate() { }
+
+async function takeScreenshot(): Promise<string | undefined> {
+    try {
+        const tmpDir = os.tmpdir();
+        const imgPath = path.join(tmpDir, 'screenshot.jpg');
+        await screenshot({ filename: imgPath });
+        console.log(`Screenshot saved to ${imgPath}`);
+        return imgPath;
+    } catch (err) {
+        console.error('Error taking screenshot:', err);
+    }
+}
