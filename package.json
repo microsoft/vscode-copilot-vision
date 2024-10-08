@@ -49,9 +49,10 @@
 		"@vscode/prompt-tsx": "^0.2.8-alpha",
 		"axios": "^1.7.7",
 		"dotenv": "^16.4.5",
+		"fabric": "^6.4.3",
 		"html2canvas": "^1.4.1",
 		"node-fetch": "^3.3.2",
-		"openai": "^4.67.1"
+		"openai": "^4.67.2"
 	},
 	"devDependencies": {
 		"@types/node": "^20.5.9",

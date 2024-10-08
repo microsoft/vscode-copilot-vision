@@ -30,7 +30,7 @@ export class ChatReferenceBinaryData {
 	constructor(mimeType: string, data: () => Thenable<Uint8Array>);
 }
 ```
-After creating a chat handler, you can access attached variables via `const chatVariables = new ChatVariablesCollection(request.references)`.
+After creating a chat handler, you can access attached variables via `const chatVariables = request.references`.
 
 Notes:
 1. There are many variable types. Images can come from `URI` (typically context from a workspace or from file explorer) or from `ChatReferenceBinaryData` (typically from the clipboard).
