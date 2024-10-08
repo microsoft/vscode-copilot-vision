@@ -8,6 +8,35 @@ Provide your own open api key! Also make sure to set the hidden setting `"chat.e
 3. `Attach Context` button and selecting and image in the workspace from the quick pick.
 4. Dragging and dropping from anywhere outside VS Code into the chat panel. Should also work for within VS Code. 
 
+# Proposed API Usage (as of 10/07/24)
+This is the shape of the API:
+```ts
+export class ChatReferenceBinaryData {
+	/**
+	 * The MIME type of the binary data.
+	 */
+	readonly mimeType: string;
+
+	/**
+	 * Retrieves the binary data of the reference.
+	 * @returns A promise that resolves to the binary data as a Uint8Array.
+	 */
+	data(): Thenable<Uint8Array>;
+
+	/**
+	 * @param mimeType The MIME type of the binary data.
+	 * @param data The binary data of the reference.
+	 */
+	constructor(mimeType: string, data: () => Thenable<Uint8Array>);
+}
+```
+After creating a chat handler, you can access attached variables via `const chatVariables = request.references`.
+
+Notes:
+1. There are many variable types. Images can come from `URI` (typically context from a workspace or from file explorer) or from `ChatReferenceBinaryData` (typically from the clipboard).
+2. `URI` files can be read and converted to `base64` strings to be used.
+3. `ChatReferenceBinaryData` returns a promise that resolves to the binary data as a `UInt8Array`, which could be converted to `base64` strings to be used.
+
 
 # Chat Example
 

@@ -54,11 +54,12 @@
 		"active-win": "^9.0.0",
 		"axios": "^1.7.7",
 		"dotenv": "^16.4.5",
+		"fabric": "^6.4.3",
 		"html2canvas": "^1.4.1",
 		"node-fetch": "^3.3.2",
-		"openai": "^4.67.1",
 		"screenshot-desktop": "^1.15.0",
 		"sharp": "^0.33.5"
+		"openai": "^4.67.2"
 	},
 	"devDependencies": {
 		"@types/active-win": "^5.1.0",

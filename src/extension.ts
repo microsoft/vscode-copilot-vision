@@ -12,19 +12,21 @@ dotenv.config();
 
 const VISION_PARTICIPANT_ID = 'chat-sample.vision';
 
+// Azure OpenAI credentials
 const endpoint = process.env["AZURE_ENDPOINT"] || "https://vscode-openai.openai.azure.com/";  
 const apiVersion = "2024-05-01-preview";  
 const deployment = "gpt-4o-mini"; // This must match your deployment name
 const AZURE_API_KEY = process.env["AZURE_API_KEY"];
+
+// OpenAI credentials
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 interface IVisionChatResult extends vscode.ChatResult {
     metadata: {
         command: string;
     }
 }
-
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // Use gpt-4o since it is fast and high quality. gpt-3.5-turbo and gpt-4 are also available.
 const MODEL_SELECTOR: vscode.LanguageModelChatSelector = { vendor: 'copilot', family: 'gpt-4o' };
@@ -79,10 +81,13 @@ export function activate(context: vscode.ExtensionContext) {
         // extension can use VS Code's `requestChatAccess` API to access the Copilot API.
         // The GitHub Copilot Chat extension implements this provider.
 
-		const chatVariables = new ChatVariablesCollection(request.references);
+        // This just converts our sources/references into more digestible format. Helpful for more complex variables.
+		// const chatVariables = new ChatVariablesCollection(request.references);;
+
+        const chatVariables = request.references
 		stream.progress('Sending request to OpenAI...');
 
-		if (!chatVariables.hasVariables()) {
+		if (chatVariables.length === 0) {
 			stream.markdown('I need a picture to generate a response.');
 			return { metadata: { command: '' } };
 		}
@@ -93,29 +98,28 @@ export function activate(context: vscode.ExtensionContext) {
 				{ type: 'text', text: request.prompt },
 			];
 
-			for (const { uniqueName: variableName, value: variableValue } of chatVariables) {
+			for (const reference of chatVariables) {
 				// URI in cases of drag and drop or from file already in the workspace
-				if (variableValue instanceof vscode.Uri) {
-					const fileExtension = variableValue.path.split('.').pop()?.toLowerCase();
+				if (reference.value instanceof vscode.Uri) {
+					const fileExtension = reference.value.path.split('.').pop()?.toLowerCase();
 					const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
 
 					if (fileExtension && imageExtensions.includes(fileExtension)) {
-						const fileData = await vscode.workspace.fs.readFile(variableValue);
+						const fileData = await vscode.workspace.fs.readFile(reference.value);
 						base64String = Buffer.from(fileData).toString('base64');
                         content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`} });
 					} else {
-						stream.markdown(`The file ${variableName} is not an image.`);
+						stream.markdown(`The file is not an image.`);
 						return { metadata: { command: '' } };
 					}
 
-				// Object in cases of copy and paste (or from quick pick)
-				} else if (typeof variableValue === 'object') {
-					const variable = variableValue as vscode.ChatReferenceBinaryData;
-                    mimeType = variable.mimeType;
-					const buffer = await variable.data();
-					base64String = Buffer.from(buffer).toString('base64');
-					content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`} });
-				}
+				// ChatReferenceBinaryData in cases of copy and paste (or from quick pick)
+                } else if (reference.value instanceof vscode.ChatReferenceBinaryData) {
+                    mimeType = reference.value.mimeType;
+                    const buffer = await reference.value.data();
+                    base64String = Buffer.from(buffer).toString('base64');
+                    content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`} });
+                }
 			}
 
 		try {	
@@ -169,16 +173,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const vision = vscode.chat.createChatParticipant(VISION_PARTICIPANT_ID, handler);
     vision.iconPath = vscode.Uri.joinPath(context.extensionUri, 'vscode-logo.png');
-    // vision.followupProvider = {
-    //     provideFollowups(result: ICatChatResult, context: vscode.ChatContext, token: vscode.CancellationToken) {
-    //         return [{
-    //             prompt: 'let us play',
-    //             label: vscode.l10n.t('Play with the cat'),
-    //             command: 'play'
-    //         } satisfies vscode.ChatFollowup];
-    //     }
-    // };
-
 
     const logger = vscode.env.createTelemetryLogger({
         sendEventData(eventName, data) {
