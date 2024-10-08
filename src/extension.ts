@@ -6,7 +6,7 @@ import { AzureOpenAI } from "openai";
 import { DefaultAzureCredential } from "@azure/identity";
 import { Models } from 'openai/resources/models.mjs';
 import { URI } from '@vscode/prompt-tsx/dist/base/util/vs/common/uri';
-import { takeScreenshotReturnPath, generateIdUsingDateTime } from './screenshot';
+import { generateScreenshotPath, generateIdUsingDateTime } from './screenshot';
 
 dotenv.config();
 
@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
-        const path = await takeScreenshotReturnPath();
+        const path = await generateScreenshotPath();
         if (path) {
             const query = '@vision troubleshoot my VS Code setup, as pictured.';
             const uniqueId = generateIdUsingDateTime();

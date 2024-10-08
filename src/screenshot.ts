@@ -3,12 +3,11 @@ import screenshot from 'screenshot-desktop';
 import * as path from 'path';
 import * as os from 'os';
 
-export async function takeScreenshotReturnPath(): Promise<string | undefined> {
+export async function generateScreenshotPath(): Promise<string | undefined> {
     try {
         const tmpDir = os.tmpdir();
         const imgPath = path.join(tmpDir, 'screenshot.jpg');
         await screenshot({ filename: imgPath });
-        console.log(`Screenshot saved to ${imgPath}`);
         return imgPath;
     } catch (err) {
         console.error('Error taking screenshot:', err);
