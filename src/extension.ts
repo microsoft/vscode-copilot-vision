@@ -70,13 +70,15 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 ]
             };
-           
+
             const uniqueId = generateIdUsingDateTime();
             const options = {
                 query: chatRequest.input, images: [{
                     value: URI.from({ path: imgPath, scheme: 'file' }),
-                    name: 'screenshot-'+uniqueId,
-                    id: uniqueId
+                    name: 'screenshot-' + uniqueId,
+                    id: uniqueId,
+                    isImage: true,
+                    isDynamic: true
                 }]
             };
             await vscode.commands.executeCommand('workbench.action.chat.open', options);
@@ -91,92 +93,92 @@ export function activate(context: vscode.ExtensionContext) {
         // extension can use VS Code's `requestChatAccess` API to access the Copilot API.
         // The GitHub Copilot Chat extension implements this provider.
 
-		const chatVariables = new ChatVariablesCollection(request.references);
-		stream.progress('Sending request to OpenAI...');
+        const chatVariables = new ChatVariablesCollection(request.references);
+        stream.progress('Sending request to OpenAI...');
 
-		if (!chatVariables.hasVariables()) {
-			stream.markdown('I need a picture to generate a response.');
-			return { metadata: { command: '' } };
-		}
+        if (!chatVariables.hasVariables()) {
+            stream.markdown('I need a picture to generate a response.');
+            return { metadata: { command: '' } };
+        }
 
-		let base64String = '';
+        let base64String = '';
         let mimeType = 'image/png';
-		const content: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string, detail?: string } }> = [
-				{ type: 'text', text: request.prompt },
-			];
+        const content: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string, detail?: string } }> = [
+            { type: 'text', text: request.prompt },
+        ];
 
-			for (const { uniqueName: variableName, value: variableValue } of chatVariables) {
-				// URI in cases of drag and drop or from file already in the workspace
-				if (variableValue instanceof vscode.Uri) {
-					const fileExtension = variableValue.path.split('.').pop()?.toLowerCase();
-					const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
+        for (const { uniqueName: variableName, value: variableValue } of chatVariables) {
+            // URI in cases of drag and drop or from file already in the workspace
+            if (variableValue instanceof vscode.Uri) {
+                const fileExtension = variableValue.path.split('.').pop()?.toLowerCase();
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
 
-					if (fileExtension && imageExtensions.includes(fileExtension)) {
-						const fileData = await vscode.workspace.fs.readFile(variableValue);
-						base64String = Buffer.from(fileData).toString('base64');
-                        content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`} });
-					} else {
-						stream.markdown(`The file ${variableName} is not an image.`);
-						return { metadata: { command: '' } };
-					}
+                if (fileExtension && imageExtensions.includes(fileExtension)) {
+                    const fileData = await vscode.workspace.fs.readFile(variableValue);
+                    base64String = Buffer.from(fileData).toString('base64');
+                    content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}` } });
+                } else {
+                    stream.markdown(`The file ${variableName} is not an image.`);
+                    return { metadata: { command: '' } };
+                }
 
-				// Object in cases of copy and paste (or from quick pick)
-				} else if (typeof variableValue === 'object') {
-					const variable = variableValue as vscode.ChatReferenceBinaryData;
-                    mimeType = variable.mimeType;
-					const buffer = await variable.data();
-					base64String = Buffer.from(buffer).toString('base64');
-					content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`} });
-				}
-			}
+                // Object in cases of copy and paste (or from quick pick)
+            } else if (typeof variableValue === 'object') {
+                const variable = variableValue as vscode.ChatReferenceBinaryData;
+                mimeType = variable.mimeType;
+                const buffer = await variable.data();
+                base64String = Buffer.from(buffer).toString('base64');
+                content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}` } });
+            }
+        }
 
-		try {	
-			const openAIRequest = {
-				model: 'gpt-4o', // Specify the OpenAI model you want to use
-				messages: [ { role: 'user', content },]
-			};
+        try {
+            const openAIRequest = {
+                model: 'gpt-4o', // Specify the OpenAI model you want to use
+                messages: [{ role: 'user', content },]
+            };
 
-			// Send the request to OpenAI
-			const response = await axios.post(OPENAI_API_URL, openAIRequest, {
-				headers: {
-					'Authorization': `Bearer ${OPENAI_API_KEY}`,
-					'Content-Type': 'application/json'
-				}
-			});
+            // Send the request to OpenAI
+            const response = await axios.post(OPENAI_API_URL, openAIRequest, {
+                headers: {
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-			for (const choice of response.data.choices) {
-				stream.markdown(choice.message.content);
-			}
+            for (const choice of response.data.choices) {
+                stream.markdown(choice.message.content);
+            }
 
-			// // Initialize the AzureOpenAI client with Entra ID (Azure AD) authentication
-			// const client = new AzureOpenAI({ endpoint, apiVersion, deployment, apiKey: AZURE_API_KEY});  
-		
-			// // EXAMPLE OF USING AZURE OPENAI
-			// const result = await client.chat.completions.create({
-			// 	messages: [
-			// 		{ role: 'user', content: request.prompt },
-			// 		{ role: 'user', content: [{type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`, detail: 'auto'}}] }
-			// 	],
-			// 	model: deployment, // Gpt4
-			// 	max_tokens: 8192,
-			// 	temperature: 0.7,
-			// 	top_p: 0.95,
-			// 	frequency_penalty: 0,
-			// 	presence_penalty: 0
-			// });
+            // // Initialize the AzureOpenAI client with Entra ID (Azure AD) authentication
+            // const client = new AzureOpenAI({ endpoint, apiVersion, deployment, apiKey: AZURE_API_KEY});  
 
-			// for (const choice of result.choices) {
-			// 	if (choice.message.content) {
-			// 		stream.markdown(choice.message.content);
-			// 	}
-			// }	
-			
-	
-		} catch(err) {
-			handleError(logger, err, stream);
-		}
+            // // EXAMPLE OF USING AZURE OPENAI
+            // const result = await client.chat.completions.create({
+            // 	messages: [
+            // 		{ role: 'user', content: request.prompt },
+            // 		{ role: 'user', content: [{type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`, detail: 'auto'}}] }
+            // 	],
+            // 	model: deployment, // Gpt4
+            // 	max_tokens: 8192,
+            // 	temperature: 0.7,
+            // 	top_p: 0.95,
+            // 	frequency_penalty: 0,
+            // 	presence_penalty: 0
+            // });
 
-		return { metadata: { command: '' } };
+            // for (const choice of result.choices) {
+            // 	if (choice.message.content) {
+            // 		stream.markdown(choice.message.content);
+            // 	}
+            // }	
+
+
+        } catch (err) {
+            handleError(logger, err, stream);
+        }
+
+        return { metadata: { command: '' } };
     };
 
     const vision = vscode.chat.createChatParticipant(VISION_PARTICIPANT_ID, handler);
@@ -404,6 +406,6 @@ function generateIdUsingDateTime(): string {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
     const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
-    
+
     return `${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}`;
 }
