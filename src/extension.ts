@@ -80,7 +80,6 @@ export function activate(context: vscode.ExtensionContext) {
                 }]
             };
             await vscode.commands.executeCommand('workbench.action.chat.open', options);
-            await vscode.commands.executeCommand('workbench.action.chat.submit');
         } else {
             console.error('Failed to take screenshot.');
         }
