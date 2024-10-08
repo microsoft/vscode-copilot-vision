@@ -76,9 +76,7 @@ export function activate(context: vscode.ExtensionContext) {
                 query: chatRequest.input, images: [{
                     value: URI.from({ path: imgPath, scheme: 'file' }),
                     name: 'screenshot-' + uniqueId,
-                    id: uniqueId,
-                    isImage: true,
-                    isDynamic: true
+                    id: uniqueId
                 }]
             };
             await vscode.commands.executeCommand('workbench.action.chat.open', options);
