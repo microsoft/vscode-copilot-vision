@@ -51,14 +51,17 @@
 	"dependencies": {
 		"@azure/identity": "^4.4.1",
 		"@vscode/prompt-tsx": "^0.2.8-alpha",
+		"active-win": "^9.0.0",
 		"axios": "^1.7.7",
 		"dotenv": "^16.4.5",
 		"html2canvas": "^1.4.1",
 		"node-fetch": "^3.3.2",
 		"openai": "^4.67.1",
-		"screenshot-desktop": "^1.15.0"
+		"screenshot-desktop": "^1.15.0",
+		"sharp": "^0.33.5"
 	},
 	"devDependencies": {
+		"@types/active-win": "^5.1.0",
 		"@types/node": "^20.5.9",
 		"@types/screenshot-desktop": "^1.12.3",
 		"@types/vscode": "1.90.0",

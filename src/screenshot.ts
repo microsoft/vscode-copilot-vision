@@ -3,14 +3,37 @@ import screenshot from 'screenshot-desktop';
 import * as path from 'path';
 import * as os from 'os';
 
-export async function generateScreenshotPath(): Promise<string | undefined> {
+const activeWin = import('active-win');
+import sharp from 'sharp';
+import { promises as fs } from 'fs';
+
+export async function generateFocusedWindowScreenshotPath(): Promise<string | undefined> {
     try {
         const tmpDir = os.tmpdir();
         const imgPath = path.join(tmpDir, 'screenshot.jpg');
-        await screenshot({ filename: imgPath });
+
+        const window = await (await activeWin).activeWindow();
+        if (!window || !window.bounds) {
+            throw new Error('No focused window detected.');
+        }
+
+        const { x, y, width, height } = window.bounds;
+
+        const imgBuffer: Buffer = await screenshot({ format: 'jpg' });
+
+        const croppedImage = await sharp(imgBuffer)
+            .extract({ left: x, top: y, width, height })
+            .toBuffer();
+
+        // Ensure the temporary directory exists
+        await fs.mkdir(path.dirname(imgPath), { recursive: true });
+
+        await fs.writeFile(imgPath, croppedImage);
+
         return imgPath;
     } catch (err) {
         console.error('Error taking screenshot:', err);
+        return undefined;
     }
 }
 
