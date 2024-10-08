@@ -5,11 +5,8 @@ import { ChatVariablesCollection } from './chatVariablesCollective';
 import { AzureOpenAI } from "openai";
 import { DefaultAzureCredential } from "@azure/identity";
 import { Models } from 'openai/resources/models.mjs';
-
-import screenshot from 'screenshot-desktop';
-import * as path from 'path';
-import * as os from 'os';
 import { URI } from '@vscode/prompt-tsx/dist/base/util/vs/common/uri';
+import { takeScreenshotReturnPath, generateIdUsingDateTime } from './screenshot';
 
 dotenv.config();
 
@@ -31,7 +28,6 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // Use gpt-4o since it is fast and high quality. gpt-3.5-turbo and gpt-4 are also available.
 const MODEL_SELECTOR: vscode.LanguageModelChatSelector = { vendor: 'copilot', family: 'gpt-4o' };
-let imgPath: string | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -59,22 +55,14 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
-        imgPath = await takeScreenshot();
-        if (imgPath) {
-            const chatRequest = {
-                input: '@vision troubleshoot my current VS Code setup',
-                attachments: [
-                    {
-                        type: 'image',
-                        path: imgPath
-                    }
-                ]
-            };
-
+        const path = await takeScreenshotReturnPath();
+        if (path) {
+            const query = '@vision troubleshoot my VS Code setup, as pictured.';
             const uniqueId = generateIdUsingDateTime();
             const options = {
-                query: chatRequest.input, images: [{
-                    value: URI.from({ path: imgPath, scheme: 'file' }),
+                query,
+                images: [{
+                    value: URI.from({ path, scheme: 'file' }),
                     name: 'screenshot-' + uniqueId,
                     id: uniqueId
                 }]
@@ -383,27 +371,3 @@ function getWebviewContent(htmlContent: string): string {
 
 export function deactivate() { }
 
-async function takeScreenshot(): Promise<string | undefined> {
-    try {
-        const tmpDir = os.tmpdir();
-        const imgPath = path.join(tmpDir, 'screenshot.jpg');
-        await screenshot({ filename: imgPath });
-        console.log(`Screenshot saved to ${imgPath}`);
-        return imgPath;
-    } catch (err) {
-        console.error('Error taking screenshot:', err);
-    }
-}
-
-function generateIdUsingDateTime(): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
-
-    return `${year}${month}${day}${hours}${minutes}${seconds}${milliseconds}`;
-}
