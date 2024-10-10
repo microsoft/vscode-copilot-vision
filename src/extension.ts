@@ -76,21 +76,28 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		let base64String = '';
-		let mimeType = 'image/png';
 		const content: ChatCompletionContentPart[] = [
 			{ type: 'text', text: request.prompt },
 		];
+		function pushImageToContent(data: Uint8Array, mimeType: string) {
+			base64String = Buffer.from(data).toString('base64');
+			content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}` } });
+		}
 
 		for (const reference of chatVariables) {
 			// URI in cases of drag and drop or from file already in the workspace
 			if (reference.value instanceof vscode.Uri) {
 				const fileExtension = reference.value.path.split('.').pop()?.toLowerCase();
 				const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
+				function getMimeType(ext: string) {
+					if (ext === 'jpg') {
+						return 'image/jpeg';
+					}
+					return `image/${ext}`;
+				}
 
 				if (fileExtension && imageExtensions.includes(fileExtension)) {
-					const fileData = await vscode.workspace.fs.readFile(reference.value);
-					base64String = Buffer.from(fileData).toString('base64');
-					content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}` } });
+					pushImageToContent(await vscode.workspace.fs.readFile(reference.value), getMimeType(fileExtension));
 				} else {
 					stream.markdown(`The file is not an image.`);
 					return { metadata: { command: '' } };
@@ -98,10 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 				// ChatReferenceBinaryData in cases of copy and paste (or from quick pick)
 			} else if (reference.value instanceof vscode.ChatReferenceBinaryData) {
-				mimeType = reference.value.mimeType;
-				const buffer = await reference.value.data();
-				base64String = Buffer.from(buffer).toString('base64');
-				content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}` } });
+				pushImageToContent(await reference.value.data(), reference.value.mimeType);
 			}
 		}
 
