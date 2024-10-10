@@ -37,7 +37,7 @@ export class Image extends PromptElement<ChatVariablesAndQueryProps, void> {
 		return (
 			<>
 				<UserMessage>
-					To include image via prompt.tsx. 
+					To include image via prompt.tsx.
 				</UserMessage>
 			</>
 		);

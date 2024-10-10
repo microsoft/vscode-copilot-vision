@@ -32,14 +32,14 @@ export class ChatVariablesCollection {
 				}
 			}
 		}
-		
+
 		return this._variables;
 	}
 
 	public *[Symbol.iterator](): IterableIterator<PromptVariable> {
 		yield* this._getVariables();
 	}
-	
+
 	public hasVariables(): boolean {
 		return this._getVariables().length > 0;
 	}
