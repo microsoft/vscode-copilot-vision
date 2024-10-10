@@ -1,10 +1,12 @@
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
+import OpenAI from 'openai';
 import { ChatVariablesCollection } from './chatVariablesCollective';
 import { AzureOpenAI } from "openai";  
 import { DefaultAzureCredential } from "@azure/identity";  
 import { Models } from 'openai/resources/models.mjs';
+import type { ChatCompletionContentPart } from 'openai/resources/index.mjs';
 
 dotenv.config();
 
@@ -75,7 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 		let base64String = '';
         let mimeType = 'image/png';
-		const content: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string, detail?: string } }> = [
+		const content: ChatCompletionContentPart[] = [
 				{ type: 'text', text: request.prompt },
 			];
 
@@ -104,27 +106,28 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 		try {	
-            const token = await getOpenAiApiToken();
-            if (token === undefined) {
+            const apiKey = await getOpenAiApiToken();
+            if (apiKey === undefined) {
                 stream.markdown('Please provide a valid Open AI token.');
                 return { metadata: { command: '' } };
             }
-            
-			const openAIRequest = {
-				model: 'gpt-4o',
-				messages: [ { role: 'user', content } ]
-			};
 
-			// Send the request to OpenAI
-			const response = await axios.post(OPENAI_API_URL, openAIRequest, {
-				headers: {
-					'Authorization': `Bearer ${token}`,
-					'Content-Type': 'application/json'
-				}
-			});
+            const openAi = new OpenAI({
+                baseURL: 'https://api.openai.com/v1',
+                apiKey
+            });
 
-			for (const choice of response.data.choices) {
-				stream.markdown(choice.message.content);
+            const res = await openAi.chat.completions.create({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'user', content }
+                ]
+            });
+
+			for (const choice of res.choices) {
+                if (choice.message.content) {
+				    stream.markdown(choice.message.content);
+                }
 			}
 
 			// // Initialize the AzureOpenAI client with Entra ID (Azure AD) authentication
