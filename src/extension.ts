@@ -20,6 +20,8 @@ const AZURE_API_KEY = process.env["AZURE_API_KEY"];
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+let cachedToken: string | undefined;
+
 interface IVisionChatResult extends vscode.ChatResult {
     metadata: {
         command: string;
@@ -102,15 +104,21 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 		try {	
+            const token = await getOpenAiApiToken();
+            if (token === undefined) {
+                stream.markdown('Please provide a valid Open AI token.');
+                return { metadata: { command: '' } };
+            }
+            
 			const openAIRequest = {
-				model: 'gpt-4o', // Specify the OpenAI model you want to use
-				messages: [ { role: 'user', content },]
+				model: 'gpt-4o',
+				messages: [ { role: 'user', content } ]
 			};
 
 			// Send the request to OpenAI
 			const response = await axios.post(OPENAI_API_URL, openAIRequest, {
 				headers: {
-					'Authorization': `Bearer ${OPENAI_API_KEY}`,
+					'Authorization': `Bearer ${token}`,
 					'Content-Type': 'application/json'
 				}
 			});
@@ -143,7 +151,11 @@ export function activate(context: vscode.ExtensionContext) {
 			// }	
 			
 	
-		} catch(err) {
+		} catch (err: unknown) {
+            // Invalidate token if it's a 401 error
+            if (typeof err === 'object' && err && 'status' in err && err.status === 401) {
+                cachedToken = undefined;
+            }
 			handleError(logger, err, stream);
 		}
 
@@ -173,6 +185,46 @@ export function activate(context: vscode.ExtensionContext) {
             kind: feedback.kind
         });
     }));
+}
+
+async function getOpenAiApiToken(): Promise<string | undefined> {
+    // Return cached token if available
+    if (cachedToken) {
+        return cachedToken;
+    }
+
+    // Pick up environment variable (mostly for development)
+    if (OPENAI_API_KEY) {
+        return OPENAI_API_KEY;
+    }
+    
+    // Get from simple input box
+    const inputBox = vscode.window.createInputBox();
+    inputBox.title = 'Enter Azure OpenAI API Key';
+    const disposables: vscode.Disposable[] = [];
+    const value = new Promise<string | undefined>(r => {
+        inputBox.onDidTriggerButton(e => {
+        });
+        disposables.push(inputBox.onDidAccept(() => {
+            inputBox.hide();
+            r(inputBox.value);
+        }));
+        disposables.push(inputBox.onDidHide(() => {
+            r(undefined);
+        }));
+    });
+    inputBox.show();
+
+    cachedToken = await value;
+    if (!cachedToken) { // Normalize
+        cachedToken = undefined;
+    }
+
+    for (const d of disposables) {
+        d.dispose();
+    }
+
+    return cachedToken;
 }
 
 function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.ChatResponseStream): void {
