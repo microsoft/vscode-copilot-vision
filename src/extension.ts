@@ -6,7 +6,6 @@ import { AzureOpenAI } from "openai";
 import { DefaultAzureCredential } from "@azure/identity";  
 import { Models } from 'openai/resources/models.mjs';
 import { URI } from '@vscode/prompt-tsx/dist/base/util/vs/common/uri';
-import { generateFocusedWindowScreenshotPath, generateIdUsingDateTime } from './screenshot';
 
 dotenv.config();
 
@@ -57,22 +56,8 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
-        const path = await generateFocusedWindowScreenshotPath();
-        if (path) {
-            const query = '@vision troubleshoot my VS Code setup, as pictured.';
-            const uniqueId = generateIdUsingDateTime();
-            const options = {
-                query,
-                images: [{
-                    value: URI.from({ path, scheme: 'file' }),
-                    name: 'screenshot-' + uniqueId,
-                    id: uniqueId
-                }]
-            };
-            await vscode.commands.executeCommand('workbench.action.chat.open', options);
-        } else {
-            console.error('Failed to take screenshot.');
-        }
+        const query = '@vision troubleshoot my VS Code setup, as pictured.';
+        await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
     }));
 
     // Define a chat handler
