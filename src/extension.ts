@@ -87,18 +87,8 @@ export function activate(context: vscode.ExtensionContext) {
 						cachedToken = undefined;
 					}
 
-					// Handle the selected model, input deployment, and API key here
-					switch (selectedModel.label) {
-						case ModelType.Anthropic:
-							cachedModel = { label: ModelType.Anthropic, model: inputDeployment };
-							break;
-						case ModelType.OpenAI:
-							cachedModel = { label: ModelType.OpenAI, model: inputDeployment };
-							break;
-						case ModelType.Gemini:
-							cachedModel = { label: ModelType.Gemini, model: inputDeployment };
-							break;
-					}
+					// Handle the selected model and input deployment
+					cachedModel = { label: selectedModel.label, model: inputDeployment };
 				}
 			}
 		}
