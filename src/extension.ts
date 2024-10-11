@@ -6,6 +6,7 @@ import { ChatVariablesCollection } from './chatVariablesCollective';
 import { AzureOpenAI } from "openai";
 import { DefaultAzureCredential } from "@azure/identity";
 import { Models } from 'openai/resources/models.mjs';
+import { URI } from '@vscode/prompt-tsx/dist/base/util/vs/common/uri';
 import type { ChatCompletionContentPart } from 'openai/resources/index.mjs';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -133,7 +134,11 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
-	// Define a chat handler
+	context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
+        const query = '@vision troubleshoot my VS Code setup, as pictured.';
+        await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
+    }));
+
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
 		// To talk to an LLM in your subcommand handler implementation, your
 		// extension can use VS Code's `requestChatAccess` API to access the Copilot API.

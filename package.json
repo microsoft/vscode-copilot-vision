@@ -38,6 +38,10 @@
 			{
 				"command": "extension.selectModel",
 				"title": "Select Model"
+      },
+      {
+				"command": "troubleshootWithVision",
+				"title": "Troubleshoot with Vision"
 			}
 		]
 	},
