@@ -1,18 +1,12 @@
-import axios, { request } from 'axios';
+
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import OpenAI from 'openai';
-import { ChatVariablesCollection } from './chatVariablesCollective';
 import { AzureOpenAI } from "openai";
-import { DefaultAzureCredential } from "@azure/identity";
-import { Models } from 'openai/resources/models.mjs';
-import { URI } from '@vscode/prompt-tsx/dist/base/util/vs/common/uri';
 import type { ChatCompletionContentPart } from 'openai/resources/index.mjs';
-import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Anthropic from '@anthropic-ai/sdk';
 import { TextBlock } from '@anthropic-ai/sdk/src/resources/messages.js';
-// import { content } from 'html2canvas/dist/types/css/property-descriptors/content';
 
 dotenv.config();
 
