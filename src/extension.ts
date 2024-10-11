@@ -64,7 +64,6 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
     }));
 
-	// Define a chat handler
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
 		// To talk to an LLM in your subcommand handler implementation, your
 		// extension can use VS Code's `requestChatAccess` API to access the Copilot API.
