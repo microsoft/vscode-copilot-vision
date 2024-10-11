@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { request } from 'axios';
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import OpenAI from 'openai';
@@ -7,6 +7,11 @@ import { AzureOpenAI } from "openai";
 import { DefaultAzureCredential } from "@azure/identity";
 import { Models } from 'openai/resources/models.mjs';
 import type { ChatCompletionContentPart } from 'openai/resources/index.mjs';
+import { GoogleAIFileManager } from '@google/generative-ai/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
+import { TextBlock } from '@anthropic-ai/sdk/src/resources/messages.js';
+// import { content } from 'html2canvas/dist/types/css/property-descriptors/content';
 
 dotenv.config();
 
@@ -22,7 +27,23 @@ const AZURE_API_KEY = process.env["AZURE_API_KEY"];
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+// Anthropic
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
 let cachedToken: string | undefined;
+let cachedModel: Model | undefined;
+
+enum ModelType {
+	Anthropic = 'Anthropic',
+	OpenAI = 'OpenAI',
+	Gemini = 'Gemini',
+	AzureOpenAI = 'AzureOpenAI'
+}
+
+interface Model {
+	label: ModelType;
+	model: string;
+}
 
 interface IVisionChatResult extends vscode.ChatResult {
 	metadata: {
@@ -30,11 +51,65 @@ interface IVisionChatResult extends vscode.ChatResult {
 	}
 }
 
-// Use gpt-4o since it is fast and high quality. gpt-3.5-turbo and gpt-4 are also available.
-const MODEL_SELECTOR: vscode.LanguageModelChatSelector = { vendor: 'copilot', family: 'gpt-4o' };
-
 export function activate(context: vscode.ExtensionContext) {
 
+	// Register the command
+	const modelSelector = vscode.commands.registerCommand('extension.selectModel', async () => {
+		const models = [
+			{ label: ModelType.Anthropic },
+			{ label: ModelType.OpenAI},
+			{ label: ModelType.Gemini }
+		];
+
+		const selectedModel = await vscode.window.showQuickPick(models, {
+			placeHolder: 'Select a model',
+		});
+
+		if (selectedModel) {
+			vscode.window.showInformationMessage(`You selected: ${selectedModel.label}`);
+
+			// Prompt the user to enter a label
+			const inputDeployment = await vscode.window.showInputBox({
+				placeHolder: cachedModel?.model ?? 'Enter a deployment',
+				prompt: 'Please enter a deployment for the selected model'
+			});
+
+			if (inputDeployment) {
+				vscode.window.showInformationMessage(`You entered: ${inputDeployment}`);
+
+				// Prompt the user to enter an API key
+				const inputApiKey = await vscode.window.showInputBox({
+					placeHolder: 'Enter your API key',
+					prompt: 'Please enter the API key for the selected model',
+					password: true
+				});
+				
+				if (inputApiKey) {
+					vscode.window.showInformationMessage(`API key entered`);
+					cachedToken = inputApiKey;
+
+					if (!cachedToken) { // Normalize
+						cachedToken = undefined;
+					}
+
+					// Handle the selected model, input deployment, and API key here
+					switch (selectedModel.label) {
+						case ModelType.Anthropic:
+							cachedModel = { label: ModelType.Anthropic, model: inputDeployment };
+							break;
+						case ModelType.OpenAI:
+							cachedModel = { label: ModelType.OpenAI, model: inputDeployment };
+							break;
+						case ModelType.Gemini:
+							cachedModel = { label: ModelType.Gemini, model: inputDeployment };
+							break;
+					}
+				}
+			}
+		}
+	});
+
+	context.subscriptions.push(modelSelector);
 
 	const disposable = vscode.commands.registerCommand('extension.showHtmlPreview', () => {
 		const panel = vscode.window.createWebviewPanel(
@@ -106,53 +181,106 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		try {
-			const apiKey = await getOpenAiApiToken();
-			if (apiKey === undefined) {
-				stream.markdown('Please provide a valid Open AI token.');
+
+			const provider = await getModelAndDeployment();
+
+			if (!cachedToken) {
+				handleError(logger, new Error('Please provide a valid API key.'), stream);
 				return { metadata: { command: '' } };
 			}
 
-			const openAi = new OpenAI({
-				baseURL: 'https://api.openai.com/v1',
-				apiKey
-			});
-
-			const res = await openAi.chat.completions.create({
-				model: 'gpt-4o',
-				messages: [
-					{ role: 'user', content }
-				]
-			});
-
-			for (const choice of res.choices) {
-				if (choice.message.content) {
-					stream.markdown(choice.message.content);
-				}
+			if (!provider?.label || !provider.model) {
+				handleError(logger, new Error('Please provide a valid model and deployment.'), stream);
+				return { metadata: { command: '' } };
 			}
 
-			// // Initialize the AzureOpenAI client with Entra ID (Azure AD) authentication
-			// const client = new AzureOpenAI({ endpoint, apiVersion, deployment, apiKey: AZURE_API_KEY});  
+			const apiKey = cachedToken;
 
-			// // EXAMPLE OF USING AZURE OPENAI
-			// const result = await client.chat.completions.create({
-			// 	messages: [
-			// 		{ role: 'user', content: request.prompt },
-			// 		{ role: 'user', content: [{type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`, detail: 'auto'}}] }
-			// 	],
-			// 	model: deployment, // Gpt4
-			// 	max_tokens: 8192,
-			// 	temperature: 0.7,
-			// 	top_p: 0.95,
-			// 	frequency_penalty: 0,
-			// 	presence_penalty: 0
-			// });
+			switch (provider?.label) {
+				case ModelType.Gemini:
+					const filePart = {
+						inlineData: {
+							data: base64String,
+							mimeType
+						}
+					};
 
-			// for (const choice of result.choices) {
-			// 	if (choice.message.content) {
-			// 		stream.markdown(choice.message.content);
-			// 	}
-			// }	
+					// for multiple images
+					const imageParts = [
+						filePart,
+					];
 
+					const genAI = new GoogleGenerativeAI(apiKey);
+					const model = genAI.getGenerativeModel({ model: provider.model }); // 'gemini-1.5-flash'
+					const generatedContent = await model.generateContent(["Tell me about this image", ...imageParts]);
+
+					console.log(generatedContent.response.text());
+					for (const part of generatedContent.response.text()) {
+						if (part) {
+							stream.markdown(part);
+						}
+					}
+					break;
+				case ModelType.Anthropic:
+					const client = new Anthropic({ apiKey: apiKey });
+					const result = await client.messages.create({
+						max_tokens: 1024,
+						messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64String } }] }],
+						model: provider.model, //'claude-3-opus-20240229'
+					});
+
+					for (const content of result.content) {
+						stream.markdown((content as TextBlock).text);
+					}
+					break;
+				case ModelType.OpenAI:
+					if (apiKey === undefined) {
+						stream.markdown('Please provide a valid Open AI token.');
+						return { metadata: { command: '' } };
+					}
+
+					const openAi = new OpenAI({
+						baseURL: 'https://api.openai.com/v1',
+						apiKey
+					});
+
+					const res = await openAi.chat.completions.create({
+						model: provider.model, // gpt-4o
+						messages: [
+							{ role: 'user', content }
+						]
+					});
+
+					for (const choice of res.choices) {
+						if (choice.message.content) {
+							stream.markdown(choice.message.content);
+						}
+					}
+					break;
+				case ModelType.AzureOpenAI:
+					// This example does not work - we currently do not have an Azure OpenAI endpoint.
+					const azureClient = new AzureOpenAI({ endpoint, apiVersion, deployment, apiKey: AZURE_API_KEY });
+
+					const azureResult = await azureClient.chat.completions.create({
+						messages: [
+							{ role: 'user', content: request.prompt },
+							{ role: 'user', content: [{ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`, detail: 'auto' } }] }
+						],
+						model: provider.model, // Gpt4
+						max_tokens: 8192,
+						temperature: 0.7,
+						top_p: 0.95,
+						frequency_penalty: 0,
+						presence_penalty: 0
+					});
+
+					for (const choice of azureResult.choices) {
+						if (choice.message.content) {
+							stream.markdown(choice.message.content);
+						}
+					}
+					break;
+			}
 
 		} catch (err: unknown) {
 			// Invalidate token if it's a 401 error
@@ -228,6 +356,19 @@ async function getOpenAiApiToken(): Promise<string | undefined> {
 	}
 
 	return cachedToken;
+}
+
+async function getModelAndDeployment(): Promise<Model | undefined> {
+	// Return cached model if available
+	if (cachedModel) {
+		return cachedModel;
+	}
+
+	// If no cachedModel, run the command that makes a user select the model
+	if (!cachedModel) {
+		await vscode.commands.executeCommand('extension.selectModel');
+		return cachedModel;
+	}
 }
 
 function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.ChatResponseStream): void {

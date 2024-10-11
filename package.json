@@ -12,7 +12,7 @@
 	],
 	"version": "0.1.0",
 	"engines": {
-		"vscode": "^1.92.0"
+		"vscode": "^1.94.0"
 	},
 	"categories": [
 		"AI",
@@ -34,6 +34,10 @@
 			{
 				"command": "extension.showHtmlPreview",
 				"title": "Show HTML Preview"
+			},
+			{
+				"command": "extension.selectModel",
+				"title": "Select Model"
 			}
 		]
 	},
@@ -45,12 +49,12 @@
 		"watch": "tsc -watch -p ./"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.29.0",
 		"@azure/identity": "^4.4.1",
+		"@google/generative-ai": "^0.21.0",
 		"@vscode/prompt-tsx": "^0.2.11-alpha",
 		"axios": "^1.7.7",
 		"dotenv": "^16.4.5",
-		"fabric": "^6.4.3",
-		"html2canvas": "^1.4.1",
 		"openai": "^4.67.3"
 	},
 	"devDependencies": {
