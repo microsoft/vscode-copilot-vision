@@ -59,7 +59,6 @@ function getApi(type: ModelType): ApiFacade {
 	}
 }
 
-
 interface ApiFacade {
 	create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]>;
 }
@@ -160,7 +159,7 @@ class GeminiApi implements ApiFacade {
 export function activate(context: vscode.ExtensionContext) {
 
 	// Register the command
-	const modelSelector = vscode.commands.registerCommand('extension.selectModelAndDeployment', async () => {
+	const modelSelector = vscode.commands.registerCommand('copilot.vision.selectModelAndDeployment', async () => {
 		const models = [
 			{ label: ModelType.Anthropic },
 			{ label: ModelType.OpenAI },
@@ -207,13 +206,19 @@ export function activate(context: vscode.ExtensionContext) {
 			cachedToken = undefined;
 		}
 
+		// Update the configuration settings
+		const config = vscode.workspace.getConfiguration();
+		await config.update('copilot.vision.model', selectedModel.label, vscode.ConfigurationTarget.Global);
+		await config.update('copilot.vision.deployment', inputDeployment, vscode.ConfigurationTarget.Global);
+		
+
 		// Handle the selected model and input deployment
 		cachedModel = { type: selectedModel.label, model: inputDeployment };
 	});
 
 	context.subscriptions.push(modelSelector);
 
-	const disposable = vscode.commands.registerCommand('extension.showHtmlPreview', () => {
+	const disposable = vscode.commands.registerCommand('copilot.vision.showHtmlPreview', () => {
 		const panel = vscode.window.createWebviewPanel(
 			'htmlPreview', // Identifies the type of the webview. Used internally
 			'HTML Preview', // Title of the panel displayed to the user
@@ -396,7 +401,7 @@ async function getModelAndDeployment(): Promise<ChatModel | undefined> {
 
 	// If no cachedModel, run the command that makes a user select the model
 	if (!cachedModel) {
-		await vscode.commands.executeCommand('extension.selectModelAndDeployment');
+		await vscode.commands.executeCommand('copilot.vision.selectModelAndDeployment');
 		return cachedModel;
 	}
 }

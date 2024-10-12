@@ -20,6 +20,20 @@
 	],
 	"activationEvents": [],
 	"contributes": {
+		"configuration": {
+			"properties": {
+				"copilot.vision.model": {
+					"type": "string",
+					"default": "",
+					"description": "The selected model type"
+				},
+				"copilot.vision.deployment": {
+					"type": "string",
+					"default": "",
+					"description": "The deployment for the selected model"
+				}
+			}
+		},
 		"chatParticipants": [
 			{
 				"id": "chat-sample.vision",
@@ -32,14 +46,14 @@
 		],
 		"commands": [
 			{
-				"command": "extension.showHtmlPreview",
+				"command": "copilot.vision.showHtmlPreview",
 				"title": "Show HTML Preview"
 			},
 			{
-				"command": "extension.selectModelAndDeployment",
+				"command": "copilot.vision.selectModelAndDeployment",
 				"title": "Set Model, Deployment, and API Key "
-      },
-      {
+			},
+			{
 				"command": "troubleshootWithVision",
 				"title": "Troubleshoot with Vision"
 			}
