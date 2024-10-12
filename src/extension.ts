@@ -53,7 +53,7 @@ function getApi(type: ModelType): ApiFacade {
 		case ModelType.Anthropic:
 			return new AnthropicApi();
 		case ModelType.OpenAI:
-			return new OpenAiApi();
+			return new OpenAIApi();
 		default:
 			throw new Error('Invalid model type');
 	}
@@ -83,15 +83,13 @@ class AnthropicApi implements ApiFacade {
 			model: provider.model, //'claude-3-opus-20240229'
 		});
 
-		// return messages;
 		return result.content.map((content: ContentBlock) => content.type === 'text' ? (content as TextBlock).text : '');
 	}
 }
 
-class OpenAiApi implements ApiFacade {
+class OpenAIApi implements ApiFacade {
 	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]> {
 		if (apiKey === undefined) {
-			// stream.markdown('Please provide a valid Open AI token.');
 			return ['Please provide a valid Open AI token.'];
 		}
 
@@ -123,7 +121,6 @@ class OpenAiApi implements ApiFacade {
 				messages.push(choice.message.content);
 			}
 		}
-
 		return messages;
 	}
 }
@@ -171,6 +168,7 @@ export function activate(context: vscode.ExtensionContext) {
 		];
 
 		const selectedModel = await vscode.window.showQuickPick(models, {
+			// TODO: Localization
 			placeHolder: 'Select a model',
 		});
 
@@ -276,9 +274,6 @@ export function activate(context: vscode.ExtensionContext) {
 			return { metadata: { command: '' } };
 		}
 
-		let content = [];
-
-		let base64String: string;
 		let base64Strings: Buffer[] = [];
 		let mimeType = 'image/png';
 
@@ -405,8 +400,6 @@ async function getModelAndDeployment(): Promise<ChatModel | undefined> {
 		return cachedModel;
 	}
 }
-
-
 
 function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.ChatResponseStream): void {
 	// making the chat request might fail because
