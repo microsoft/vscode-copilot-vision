@@ -276,7 +276,10 @@ export function activate(context: vscode.ExtensionContext) {
 			return { metadata: { command: '' } };
 		}
 
-		let base64Strings = [];
+		let content = [];
+
+		let base64String: string;
+		let base64Strings: Buffer[] = [];
 		let mimeType = 'image/png';
 
 		for (const reference of chatVariables) {
@@ -285,9 +288,16 @@ export function activate(context: vscode.ExtensionContext) {
 				const fileExtension = reference.value.path.split('.').pop()?.toLowerCase();
 				const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
 
+				function getMimeType(ext: string) {
+					if (ext === 'jpg') {
+						return 'image/jpeg';
+					}
+					return `image/${ext}`;
+				}
+
 				if (fileExtension && imageExtensions.includes(fileExtension)) {
-					const fileData = await vscode.workspace.fs.readFile(reference.value);
-					base64Strings.push(Buffer.from(fileData));
+					base64Strings.push(Buffer.from(await vscode.workspace.fs.readFile(reference.value)));
+					mimeType = getMimeType(fileExtension)
 				} else {
 					stream.markdown(`The file is not an image.`);
 					return { metadata: { command: '' } };
@@ -296,8 +306,7 @@ export function activate(context: vscode.ExtensionContext) {
 				// ChatReferenceBinaryData in cases of copy and paste (or from quick pick)
 			} else if (reference.value instanceof vscode.ChatReferenceBinaryData) {
 				mimeType = reference.value.mimeType;
-				const buffer = await reference.value.data();
-				base64Strings.push(Buffer.from(buffer));
+				base64Strings.push(Buffer.from(await reference.value.data()));
 			}
 		}
 
