@@ -36,8 +36,8 @@
 				"title": "Show HTML Preview"
 			},
 			{
-				"command": "extension.selectModel",
-				"title": "Select Model"
+				"command": "extension.selectModelAndDeployment",
+				"title": "Set Model, Deployment, and API Key "
       },
       {
 				"command": "troubleshootWithVision",
