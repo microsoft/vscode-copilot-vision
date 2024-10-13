@@ -24,6 +24,7 @@
 			"properties": {
 				"copilot.vision.model": {
 					"type": "string",
+					"enum": ["OpenAI", "Anthropic", "Gemini"],
 					"default": "",
 					"description": "The selected model type"
 				},
