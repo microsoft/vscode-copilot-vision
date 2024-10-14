@@ -1,22 +1,10 @@
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
-import OpenAI from 'openai';
-import { AzureOpenAI } from "openai";
-import type { ChatCompletionContentPart } from 'openai/resources/index.mjs';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import Anthropic from '@anthropic-ai/sdk';
-import { ImageBlockParam, TextBlock, TextBlockParam } from '@anthropic-ai/sdk/src/resources/messages.js';
-import { ContentBlock } from '@anthropic-ai/sdk/resources/messages.mjs';
+import { getApi } from './apiFacade';
 
 dotenv.config();
 
 const VISION_PARTICIPANT_ID = 'chat-sample.vision';
-
-// Azure OpenAI credentials
-const endpoint = process.env["AZURE_ENDPOINT"] || "https://vscode-openai.openai.azure.com/";
-const apiVersion = "2024-05-01-preview";
-const deployment = "gpt-4o-mini"; // This must match your deployment name
-const AZURE_API_KEY = process.env["AZURE_API_KEY"];
 
 // OpenAI credentials
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -28,16 +16,16 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 let cachedToken: string | undefined;
 let cachedModel: ChatModel | undefined;
 
-enum ModelType {
+export enum ModelType {
 	Anthropic = 'Anthropic',
 	OpenAI = 'OpenAI',
 	Gemini = 'Gemini',
 	AzureOpenAI = 'AzureOpenAI'
 }
 
-interface ChatModel {
+export interface ChatModel {
 	type: ModelType;
-	model: string;
+	deployment: string;
 }
 
 interface IVisionChatResult extends vscode.ChatResult {
@@ -46,119 +34,29 @@ interface IVisionChatResult extends vscode.ChatResult {
 	}
 }
 
-function getApi(type: ModelType): ApiFacade {
-	switch (type) {
-		case ModelType.Gemini:
-			return new GeminiApi();
-		case ModelType.Anthropic:
-			return new AnthropicApi();
-		case ModelType.OpenAI:
-			return new OpenAIApi();
-		default:
-			throw new Error('Invalid model type');
-	}
-}
-
-interface ApiFacade {
-	create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]>;
-}
-
-class AnthropicApi implements ApiFacade {
-	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]> {
-		const client = new Anthropic({ apiKey: apiKey });
-
-		const prompts: Array<TextBlockParam | ImageBlockParam> = [
-			{ type: 'text', text: request },
-		];
-
-		for (const data of content) {
-			const base64 = data.toString('base64');
-			prompts.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64 } });
-		}
-
-		const result = await client.messages.create({
-			max_tokens: 1024,
-			messages: [{ role: 'user', content: prompts }],
-			model: provider.model, //'claude-3-opus-20240229'
-		});
-
-		return result.content.map((content: ContentBlock) => content.type === 'text' ? (content as TextBlock).text : '');
-	}
-}
-
-class OpenAIApi implements ApiFacade {
-	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]> {
-		if (apiKey === undefined) {
-			return ['Please provide a valid Open AI token.'];
-		}
-
-		const prompts: ChatCompletionContentPart[] = [
-			{ type: 'text', text: request },
-		];
-
-		for (const data of content) {
-			const base64 = data.toString('base64');
-			prompts.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } });
-		}
-
-		const openAi = new OpenAI({
-			baseURL: 'https://api.openai.com/v1',
-			apiKey
-		});
-
-		const res = await openAi.chat.completions.create({
-			model: provider.model, // gpt-4o
-			messages: [
-				{ role: 'user', content: prompts }
-			]
-		});
-
-		const messages = []
-
-		for (const choice of res.choices) {
-			if (choice.message.content) {
-				messages.push(choice.message.content);
-			}
-		}
-		return messages;
-	}
-}
-
-class GeminiApi implements ApiFacade {
-	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]> {
-
-		function getFilePart(buffer: Buffer) {
-			return {
-				inlineData: {
-					data: buffer.toString('base64'),
-					mimeType
-				}
-			};
-		}
-
-		// for multiple images
-		const imageParts = [];
-
-		for (const buffer of content) {
-			imageParts.push(getFilePart(buffer));
-		}
-
-		const genAI = new GoogleGenerativeAI(apiKey);
-		const model = genAI.getGenerativeModel({ model: provider.model }); // 'gemini-1.5-flash'
-		const generatedContent = await model.generateContent(["Tell me about this image", ...imageParts]);
-
-		const messages = [];
-
-		for (const part of generatedContent.response.text()) {
-			messages.push(part);
-		}
-		return messages;
-	}
-}
-
 export function activate(context: vscode.ExtensionContext) {
 
-	// Register the command
+	// Update API key
+	const updateApiKeyCommand = vscode.commands.registerCommand('copilot.vision.updateApiKey', async () => {
+		// Prompt the user to enter a new API key
+		const apiKey = await vscode.window.showInputBox({
+			placeHolder: 'Enter your API key',
+			prompt: 'Please enter the API key',
+			password: true
+		});
+
+		if (!apiKey) {
+			vscode.window.showErrorMessage('No API key entered.');
+			return;
+		}
+
+		// Update the cached token
+		cachedToken = apiKey;
+		vscode.window.showInformationMessage('API key updated successfully.');
+	});
+
+	context.subscriptions.push(updateApiKeyCommand);
+
 	const modelSelector = vscode.commands.registerCommand('copilot.vision.selectModelAndDeployment', async () => {
 		const models = [
 			{ label: ModelType.Anthropic },
@@ -178,8 +76,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// Prompt the user to enter a label
 		const inputDeployment = await vscode.window.showInputBox({
-			placeHolder: cachedModel?.model ?? 'Enter a deployment',
-			prompt: 'Please enter a deployment for the selected model'
+			placeHolder: cachedModel?.deployment ? `Current Deployment: ${cachedModel?.deployment}` : 'Enter a deployment',
+			prompt: 'Please enter a deployment for the selected model. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
 		});
 
 		if (!inputDeployment) {
@@ -213,7 +111,7 @@ export function activate(context: vscode.ExtensionContext) {
 		
 
 		// Handle the selected model and input deployment
-		cachedModel = { type: selectedModel.label, model: inputDeployment };
+		cachedModel = { type: selectedModel.label, deployment: inputDeployment };
 	});
 
 	context.subscriptions.push(modelSelector);
@@ -258,7 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
 			stream.progress('Selecting model...');
 		}
 
-		const provider = await getModelAndDeployment();
+		const model = await getModelAndDeployment();
 
 		stream.progress(`Generating response from ${cachedModel?.type}...`);
 
@@ -267,7 +165,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return { metadata: { command: '' } };
 		}
 
-		if (!provider?.type || !provider.model) {
+		if (!model?.type || !model.deployment) {
 			handleError(logger, new Error('Please provide a valid model and deployment.'), stream);
 			return { metadata: { command: '' } };
 		}
@@ -311,8 +209,8 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		try {
-			const api = getApi(provider.type);
-			const result = await api.create(apiKey, request.prompt, provider, base64Strings, mimeType);
+			const api = getApi(model.type);
+			const result = await api.create(apiKey, request.prompt, model, base64Strings, mimeType);
 			for (const message of result) {
 				stream.markdown(message);
 			}
