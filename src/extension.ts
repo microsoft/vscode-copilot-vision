@@ -173,7 +173,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		let base64Strings: Buffer[] = [];
-		let mimeType = 'image/png';
+		let mimeType: string | undefined;
 
 		for (const reference of chatVariables) {
 			// URI in cases of drag and drop or from file already in the workspace
@@ -201,6 +201,11 @@ export function activate(context: vscode.ExtensionContext) {
 				mimeType = reference.value.mimeType;
 				base64Strings.push(Buffer.from(await reference.value.data()));
 			}
+		}
+
+		if (!mimeType) {
+			stream.markdown('No image type was found from the attachment.');
+			return { metadata: { command: '' } };
 		}
 
 		try {
