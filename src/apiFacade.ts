@@ -3,9 +3,8 @@ import { ContentBlock } from "@anthropic-ai/sdk/resources/messages.mjs";
 import { TextBlockParam, ImageBlockParam, TextBlock } from "@anthropic-ai/sdk/src/resources/messages.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI, { AzureOpenAI } from "openai";
-import type { ChatCompletionContentPart } from "openai/resources/index.mjs";
+import type { ChatCompletionContentPart, ChatCompletionUserMessageParam } from "openai/resources/index.mjs";
 import { ChatModel, ModelType } from "./extension";
-import { ChatCompletionUserMessageParam } from "openai/src/resources/index.js";
 
 export interface ApiFacade {
 	create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]>;

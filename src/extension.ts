@@ -52,7 +52,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// Update the cached token
 		cachedToken = apiKey;
-		vscode.window.showInformationMessage('API key updated successfully.');
 	});
 
 	context.subscriptions.push(updateApiKeyCommand);
@@ -72,7 +71,6 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!selectedModel) {
 			return;
 		}
-		vscode.window.showInformationMessage(`You selected: ${selectedModel.label}`);
 
 		// Prompt the user to enter a label
 		const inputDeployment = await vscode.window.showInputBox({
@@ -83,8 +81,6 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!inputDeployment) {
 			return;
 		}
-
-		vscode.window.showInformationMessage(`You entered: ${inputDeployment}`);
 
 		// Prompt the user to enter an API key
 		const inputApiKey = await vscode.window.showInputBox({
@@ -97,7 +93,6 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		vscode.window.showInformationMessage(`API key entered`);
 		cachedToken = inputApiKey;
 
 		if (!cachedToken) { // Normalize
