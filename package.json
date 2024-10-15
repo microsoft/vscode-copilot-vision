@@ -18,7 +18,9 @@
 		"AI",
 		"Chat"
 	],
-	"activationEvents": [],
+	"activationEvents": [
+		"onLanguage:markdown"
+	],
 	"contributes": {
 		"configuration": {
 			"properties": {
@@ -56,7 +58,7 @@
 				],
 				"actions": {
 					"kind": "quickfix",
-					"title": "Generate alt text for image",
+					"title": "Generate alt text",
 					"description": "Generate alt text for image"
 				}
 			}

@@ -484,6 +484,10 @@ export class AltTextGenerator implements vscode.CodeActionProvider {
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 
 	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<vscode.CodeAction[] | undefined> {
+		if (!cachedToken || !cachedModel) {
+			return;
+		}
+
 		const currentLine = document.lineAt(range.start.line).text;
 
 		const match = currentLine.match(/!\[([^\]]*)\]\(([^)]+)\)/);
@@ -495,7 +499,7 @@ export class AltTextGenerator implements vscode.CodeActionProvider {
 		const imagePath = match[2]; // Extract the relative path from the parentheses
 
 		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), imagePath);
-		const altText = await this.generateAltText(resolvedImagePath);
+		const altText = await this.generateAltText(cachedModel, cachedToken, resolvedImagePath);
 		console.log(altText);
 		if (!altText) {
 			return;
@@ -516,7 +520,7 @@ export class AltTextGenerator implements vscode.CodeActionProvider {
 		return [fix];
 	}
 
-	async generateAltText(imagePath: string): Promise<string | undefined> {
+	async generateAltText(model: ChatModel, apiKey: string, imagePath: string): Promise<string | undefined> {
 		const uri = vscode.Uri.file(imagePath);
 		const fileExtension = uri.path.split('.').pop()?.toLowerCase();
 		const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
@@ -533,13 +537,7 @@ export class AltTextGenerator implements vscode.CodeActionProvider {
 		}
 		const buffer = Buffer.from(await vscode.workspace.fs.readFile(uri));
 		const mimeType = getMimeType(fileExtension)
-		const model = await getModelAndDeployment();
 
-		if (!cachedToken || !model?.type || !model.deployment) {
-			return;
-		}
-
-		const apiKey = cachedToken;
 		try {
 			const api = getApi(model.type);
 			const altText = (await api.create(apiKey, 'Generate alt text for this image', model, [buffer], mimeType)).join(' ');
