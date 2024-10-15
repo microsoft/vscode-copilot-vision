@@ -29,12 +29,12 @@
 						"Anthropic",
 						"Gemini"
 					],
-					"default": "",
+					"default": "OpenAI",
 					"description": "The selected model type"
 				},
 				"copilot.vision.deployment": {
 					"type": "string",
-					"default": "",
+					"default": "gpt-4o",
 					"description": "The deployment for the selected model"
 				}
 			}
