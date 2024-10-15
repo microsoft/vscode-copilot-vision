@@ -139,19 +139,19 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
-		// To talk to an LLM in your subcommand handler implementation, your
-		// extension can use VS Code's `requestChatAccess` API to access the Copilot API.
-		// The GitHub Copilot Chat extension implements this provider.
-
-		// This just converts our sources/references into more digestible format. Helpful for more complex variables.
-		// const chatVariables = new ChatVariablesCollection(request.references);;
-
-		const chatVariables = request.references;
+		// Default to Azure Open AI, only use a different model if one is selected explicitly
+		// through the model picker command
 		if (!cachedModel) {
-			stream.progress('Selecting model...');
+			cachedModel = {
+				type: ModelType.OpenAI,
+				deployment: 'gpt-4o'
+			}
 		}
-
-		const model = await getModelAndDeployment();
+		if (!cachedToken) {
+			if (cachedModel.type === ModelType.OpenAI) {
+				cachedToken = await getOpenAiApiToken();
+			}
+		}
 
 		stream.progress(`Generating response from ${cachedModel?.type}...`);
 
@@ -160,13 +160,14 @@ export function activate(context: vscode.ExtensionContext) {
 			return { metadata: { command: '' } };
 		}
 
-		if (!model?.type || !model.deployment) {
+		if (!cachedModel?.type || !cachedModel.deployment) {
 			handleError(logger, new Error('Please provide a valid model and deployment.'), stream);
 			return { metadata: { command: '' } };
 		}
 
 		const apiKey = cachedToken;
 
+		const chatVariables = request.references;
 		if (chatVariables.length === 0) {
 			stream.markdown('I need a picture to generate a response.');
 			return { metadata: { command: '' } };
@@ -208,8 +209,8 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		try {
-			const api = getApi(model.type);
-			const result = await api.create(apiKey, request.prompt, model, base64Strings, mimeType);
+			const api = getApi(cachedModel.type);
+			const result = await api.create(apiKey, request.prompt, cachedModel, base64Strings, mimeType);
 			for (const message of result) {
 				stream.markdown(message);
 			}
@@ -263,6 +264,7 @@ async function getOpenAiApiToken(): Promise<string | undefined> {
 
 	// Get from simple input box
 	const inputBox = vscode.window.createInputBox();
+	inputBox.ignoreFocusOut = true;
 	inputBox.title = 'Enter Azure OpenAI API Key';
 	const disposables: vscode.Disposable[] = [];
 	const value = new Promise<string | undefined>(r => {
@@ -288,19 +290,6 @@ async function getOpenAiApiToken(): Promise<string | undefined> {
 	}
 
 	return cachedToken;
-}
-
-async function getModelAndDeployment(): Promise<ChatModel | undefined> {
-	// Return cached model if available
-	if (cachedModel) {
-		return cachedModel;
-	}
-
-	// If no cachedModel, run the command that makes a user select the model
-	if (!cachedModel) {
-		await vscode.commands.executeCommand('copilot.vision.selectModelAndDeployment');
-		return cachedModel;
-	}
 }
 
 function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.ChatResponseStream): void {
