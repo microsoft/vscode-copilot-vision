@@ -52,11 +52,11 @@
 		"commands": [
 			{
 				"command": "copilot.vision.showHtmlPreview",
-				"title": "Show HTML Preview"
+				"title": "Copilot Vision: Show HTML Preview"
 			},
 			{
 				"command": "copilot.vision.selectModelAndDeployment",
-				"title": "Set Model, Deployment, and API Key "
+				"title": "Copilot Vision: Set Model, Deployment, and API Key "
 			},
 			{
 				"command": "troubleshootWithVision",
@@ -64,7 +64,7 @@
 			},
 			{
 				"command": "copilot.vision.updateApiKey",
-				"title": "Set API Key"
+				"title": "Copilot Vision: Set API Key"
 			}
 		]
 	},

@@ -204,8 +204,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		if (!mimeType) {
-			stream.markdown('No image type was found from the attachment.');
-			return { metadata: { command: '' } };
+			throw new Error('No image type was found from the attachment.');
 		}
 
 		try {
