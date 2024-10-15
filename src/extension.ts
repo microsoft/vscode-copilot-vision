@@ -1,29 +1,32 @@
-import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
-import OpenAI from 'openai';
-import { ChatVariablesCollection } from './chatVariablesCollective';
-import { AzureOpenAI } from "openai";
-import { DefaultAzureCredential } from "@azure/identity";
-import { Models } from 'openai/resources/models.mjs';
-import { URI } from '@vscode/prompt-tsx/dist/base/util/vs/common/uri';
-import type { ChatCompletionContentPart } from 'openai/resources/index.mjs';
+import { getApi } from './apiFacade';
 
 dotenv.config();
 
 const VISION_PARTICIPANT_ID = 'chat-sample.vision';
 
-// Azure OpenAI credentials
-const endpoint = process.env["AZURE_ENDPOINT"] || "https://vscode-openai.openai.azure.com/";
-const apiVersion = "2024-05-01-preview";
-const deployment = "gpt-4o-mini"; // This must match your deployment name
-const AZURE_API_KEY = process.env["AZURE_API_KEY"];
-
 // OpenAI credentials
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+// Anthropic
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
 let cachedToken: string | undefined;
+let cachedModel: ChatModel | undefined;
+
+export enum ModelType {
+	Anthropic = 'Anthropic',
+	OpenAI = 'OpenAI',
+	Gemini = 'Gemini',
+	AzureOpenAI = 'AzureOpenAI'
+}
+
+export interface ChatModel {
+	type: ModelType;
+	deployment: string;
+}
 
 interface IVisionChatResult extends vscode.ChatResult {
 	metadata: {
@@ -31,13 +34,84 @@ interface IVisionChatResult extends vscode.ChatResult {
 	}
 }
 
-// Use gpt-4o since it is fast and high quality. gpt-3.5-turbo and gpt-4 are also available.
-const MODEL_SELECTOR: vscode.LanguageModelChatSelector = { vendor: 'copilot', family: 'gpt-4o' };
-
 export function activate(context: vscode.ExtensionContext) {
 
+	// Update API key
+	const updateApiKeyCommand = vscode.commands.registerCommand('copilot.vision.updateApiKey', async () => {
+		// Prompt the user to enter a new API key
+		const apiKey = await vscode.window.showInputBox({
+			placeHolder: 'Enter your API key',
+			prompt: 'Please enter the API key',
+			password: true
+		});
 
-	const disposable = vscode.commands.registerCommand('extension.showHtmlPreview', () => {
+		if (!apiKey) {
+			vscode.window.showErrorMessage('No API key entered.');
+			return;
+		}
+
+		// Update the cached token
+		cachedToken = apiKey;
+	});
+
+	context.subscriptions.push(updateApiKeyCommand);
+
+	const modelSelector = vscode.commands.registerCommand('copilot.vision.selectModelAndDeployment', async () => {
+		const models = [
+			{ label: ModelType.Anthropic },
+			{ label: ModelType.OpenAI },
+			{ label: ModelType.Gemini }
+		];
+
+		const selectedModel = await vscode.window.showQuickPick(models, {
+			// TODO: Localization
+			placeHolder: 'Select a model',
+		});
+
+		if (!selectedModel) {
+			return;
+		}
+
+		// Prompt the user to enter a label
+		const inputDeployment = await vscode.window.showInputBox({
+			placeHolder: cachedModel?.deployment ? `Current Deployment: ${cachedModel?.deployment}` : 'Enter a deployment',
+			prompt: 'Please enter a deployment for the selected model. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
+		});
+
+		if (!inputDeployment) {
+			return;
+		}
+
+		// Prompt the user to enter an API key
+		const inputApiKey = await vscode.window.showInputBox({
+			placeHolder: 'Enter your API key',
+			prompt: 'Please enter the API key for the selected model',
+			password: true
+		});
+
+		if (!inputApiKey) {
+			return;
+		}
+
+		cachedToken = inputApiKey;
+
+		if (!cachedToken) { // Normalize
+			cachedToken = undefined;
+		}
+
+		// Update the configuration settings
+		const config = vscode.workspace.getConfiguration();
+		await config.update('copilot.vision.model', selectedModel.label, vscode.ConfigurationTarget.Global);
+		await config.update('copilot.vision.deployment', inputDeployment, vscode.ConfigurationTarget.Global);
+		
+
+		// Handle the selected model and input deployment
+		cachedModel = { type: selectedModel.label, deployment: inputDeployment };
+	});
+
+	context.subscriptions.push(modelSelector);
+
+	const disposable = vscode.commands.registerCommand('copilot.vision.showHtmlPreview', () => {
 		const panel = vscode.window.createWebviewPanel(
 			'htmlPreview', // Identifies the type of the webview. Used internally
 			'HTML Preview', // Title of the panel displayed to the user
@@ -60,9 +134,9 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable);
 
 	context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
-        const query = '@vision troubleshoot my VS Code setup, as pictured.';
-        await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
-    }));
+		const query = '@vision troubleshoot my VS Code setup, as pictured.';
+		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
+	}));
 
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
 		// To talk to an LLM in your subcommand handler implementation, your
@@ -72,28 +146,41 @@ export function activate(context: vscode.ExtensionContext) {
 		// This just converts our sources/references into more digestible format. Helpful for more complex variables.
 		// const chatVariables = new ChatVariablesCollection(request.references);;
 
-		const chatVariables = request.references
-		stream.progress('Sending request to OpenAI...');
+		const chatVariables = request.references;
+		if (!cachedModel) {
+			stream.progress('Selecting model...');
+		}
+
+		const model = await getModelAndDeployment();
+
+		stream.progress(`Generating response from ${cachedModel?.type}...`);
+
+		if (!cachedToken) {
+			handleError(logger, new Error('Please provide a valid API key.'), stream);
+			return { metadata: { command: '' } };
+		}
+
+		if (!model?.type || !model.deployment) {
+			handleError(logger, new Error('Please provide a valid model and deployment.'), stream);
+			return { metadata: { command: '' } };
+		}
+
+		const apiKey = cachedToken;
 
 		if (chatVariables.length === 0) {
 			stream.markdown('I need a picture to generate a response.');
 			return { metadata: { command: '' } };
 		}
 
-		let base64String = '';
-		const content: ChatCompletionContentPart[] = [
-			{ type: 'text', text: request.prompt },
-		];
-		function pushImageToContent(data: Uint8Array, mimeType: string) {
-			base64String = Buffer.from(data).toString('base64');
-			content.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}` } });
-		}
+		let base64Strings: Buffer[] = [];
+		let mimeType: string | undefined;
 
 		for (const reference of chatVariables) {
 			// URI in cases of drag and drop or from file already in the workspace
 			if (reference.value instanceof vscode.Uri) {
 				const fileExtension = reference.value.path.split('.').pop()?.toLowerCase();
 				const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
+
 				function getMimeType(ext: string) {
 					if (ext === 'jpg') {
 						return 'image/jpeg';
@@ -102,7 +189,8 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 
 				if (fileExtension && imageExtensions.includes(fileExtension)) {
-					pushImageToContent(await vscode.workspace.fs.readFile(reference.value), getMimeType(fileExtension));
+					base64Strings.push(Buffer.from(await vscode.workspace.fs.readFile(reference.value)));
+					mimeType = getMimeType(fileExtension)
 				} else {
 					stream.markdown(`The file is not an image.`);
 					return { metadata: { command: '' } };
@@ -110,58 +198,21 @@ export function activate(context: vscode.ExtensionContext) {
 
 				// ChatReferenceBinaryData in cases of copy and paste (or from quick pick)
 			} else if (reference.value instanceof vscode.ChatReferenceBinaryData) {
-				pushImageToContent(await reference.value.data(), reference.value.mimeType);
+				mimeType = reference.value.mimeType;
+				base64Strings.push(Buffer.from(await reference.value.data()));
 			}
 		}
 
+		if (!mimeType) {
+			throw new Error('No image type was found from the attachment.');
+		}
+
 		try {
-			const apiKey = await getOpenAiApiToken();
-			if (apiKey === undefined) {
-				stream.markdown('Please provide a valid Open AI token.');
-				return { metadata: { command: '' } };
+			const api = getApi(model.type);
+			const result = await api.create(apiKey, request.prompt, model, base64Strings, mimeType);
+			for (const message of result) {
+				stream.markdown(message);
 			}
-
-			const openAi = new OpenAI({
-				baseURL: 'https://api.openai.com/v1',
-				apiKey
-			});
-
-			const res = await openAi.chat.completions.create({
-				model: 'gpt-4o',
-				messages: [
-					{ role: 'user', content }
-				]
-			});
-
-			for (const choice of res.choices) {
-				if (choice.message.content) {
-					stream.markdown(choice.message.content);
-				}
-			}
-
-			// // Initialize the AzureOpenAI client with Entra ID (Azure AD) authentication
-			// const client = new AzureOpenAI({ endpoint, apiVersion, deployment, apiKey: AZURE_API_KEY});  
-
-			// // EXAMPLE OF USING AZURE OPENAI
-			// const result = await client.chat.completions.create({
-			// 	messages: [
-			// 		{ role: 'user', content: request.prompt },
-			// 		{ role: 'user', content: [{type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64String}`, detail: 'auto'}}] }
-			// 	],
-			// 	model: deployment, // Gpt4
-			// 	max_tokens: 8192,
-			// 	temperature: 0.7,
-			// 	top_p: 0.95,
-			// 	frequency_penalty: 0,
-			// 	presence_penalty: 0
-			// });
-
-			// for (const choice of result.choices) {
-			// 	if (choice.message.content) {
-			// 		stream.markdown(choice.message.content);
-			// 	}
-			// }	
-
 
 		} catch (err: unknown) {
 			// Invalidate token if it's a 401 error
@@ -237,6 +288,19 @@ async function getOpenAiApiToken(): Promise<string | undefined> {
 	}
 
 	return cachedToken;
+}
+
+async function getModelAndDeployment(): Promise<ChatModel | undefined> {
+	// Return cached model if available
+	if (cachedModel) {
+		return cachedModel;
+	}
+
+	// If no cachedModel, run the command that makes a user select the model
+	if (!cachedModel) {
+		await vscode.commands.executeCommand('copilot.vision.selectModelAndDeployment');
+		return cachedModel;
+	}
 }
 
 function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.ChatResponseStream): void {
