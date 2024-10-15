@@ -56,8 +56,8 @@
 				],
 				"actions": {
 					"kind": "quickfix",
-					"command": "copilot.vision.showHtmlPreview",
-					"title": "Copilot Vision: Show HTML Preview"
+					"title": "Generate alt text for image",
+					"description": "Generate alt text for image"
 				}
 			}
 		],
