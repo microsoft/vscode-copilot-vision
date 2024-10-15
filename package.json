@@ -56,15 +56,11 @@
 			},
 			{
 				"command": "copilot.vision.selectModelAndDeployment",
-				"title": "Copilot Vision: Set Model, Deployment, and API Key "
+				"title": "Copilot Vision: Set Model and Deployment"
 			},
 			{
 				"command": "troubleshootWithVision",
 				"title": "Troubleshoot with Vision"
-			},
-			{
-				"command": "copilot.vision.updateApiKey",
-				"title": "Copilot Vision: Set API Key"
 			}
 		]
 	},
