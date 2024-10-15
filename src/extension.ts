@@ -112,6 +112,45 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(modelSelector);
 
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.generateAltText', async () => {
+		const document = vscode.window.activeTextEditor?.document;
+		const currentLine = vscode.window.activeTextEditor?.selection.active.line;
+		if (!cachedToken || !cachedModel || !document || currentLine === undefined) {
+			return;
+		}
+
+		const text = document.lineAt(currentLine).text;
+		// TODO: @meganrogge also look at the other formats of markdown images and handle them as well
+		const match = text.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+		if (!match) {
+			return;
+		}
+		const currentAltText = match[1]; // Extract the current alt text
+		const imagePath = match[2]; // Extract the relative path from the parentheses
+
+		if (currentAltText.length) {
+			// To do: also support replacing existing?
+			return;
+		}
+		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), imagePath);
+		const altText = await generateAltText(cachedModel, cachedToken, resolvedImagePath);
+		console.log(altText);
+		if (!altText) {
+			return;
+		}
+		// Calculate the range for the alt text within the document
+		const altTextStart = text.indexOf(currentAltText, match.index) + 2;
+		// const altTextEnd = altTextStart + currentAltText.length;
+		// const altTextRange = new vscode.Range(
+		// 	document.positionAt(altTextStart),
+		// 	document.positionAt(altTextEnd)
+		// );
+
+		const edit = new vscode.WorkspaceEdit();
+		edit.insert(document.uri, new vscode.Position(currentLine, altTextStart), altText);
+		await vscode.workspace.applyEdit(edit);
+	}));
+
 	const disposable = vscode.commands.registerCommand('copilot.vision.showHtmlPreview', () => {
 		const panel = vscode.window.createWebviewPanel(
 			'htmlPreview', // Identifies the type of the webview. Used internally
@@ -495,59 +534,40 @@ export class AltTextGenerator implements vscode.CodeActionProvider {
 			return;
 		}
 
-		const currentAltText = match[1]; // Extract the current alt text
-		const imagePath = match[2]; // Extract the relative path from the parentheses
-
-		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), imagePath);
-		const altText = await this.generateAltText(cachedModel, cachedToken, resolvedImagePath);
-		console.log(altText);
-		if (!altText) {
-			return;
-		}
-
 		const fix = new vscode.CodeAction('Generate alt text', vscode.CodeActionKind.QuickFix);
-		fix.edit = new vscode.WorkspaceEdit();
+		fix.command = { 'command': 'copilot.vision.generateAltText', 'title': 'Generate alt text' };
 
-		// Calculate the range for the alt text within the document
-		const altTextStart = currentLine.indexOf(currentAltText, match.index);
-		const altTextEnd = altTextStart + currentAltText.length;
-		const altTextRange = new vscode.Range(
-			document.positionAt(altTextStart),
-			document.positionAt(altTextEnd)
-		);
-
-		fix.edit.replace(document.uri, altTextRange, altText);
 		return [fix];
 	}
+}
 
-	async generateAltText(model: ChatModel, apiKey: string, imagePath: string): Promise<string | undefined> {
-		const uri = vscode.Uri.file(imagePath);
-		const fileExtension = uri.path.split('.').pop()?.toLowerCase();
-		const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
+async function generateAltText(model: ChatModel, apiKey: string, imagePath: string): Promise<string | undefined> {
+	const uri = vscode.Uri.file(imagePath);
+	const fileExtension = uri.path.split('.').pop()?.toLowerCase();
+	const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
 
-		function getMimeType(ext: string) {
-			if (ext === 'jpg') {
-				return 'image/jpeg';
-			}
-			return `image/${ext}`;
+	function getMimeType(ext: string) {
+		if (ext === 'jpg') {
+			return 'image/jpeg';
 		}
+		return `image/${ext}`;
+	}
 
-		if (!fileExtension || !imageExtensions.includes(fileExtension)) {
-			return;
-		}
-		const buffer = Buffer.from(await vscode.workspace.fs.readFile(uri));
-		const mimeType = getMimeType(fileExtension)
+	if (!fileExtension || !imageExtensions.includes(fileExtension)) {
+		return;
+	}
+	const buffer = Buffer.from(await vscode.workspace.fs.readFile(uri));
+	const mimeType = getMimeType(fileExtension)
 
-		try {
-			const api = getApi(model.type);
-			const altText = (await api.create(apiKey, 'Generate alt text for this image', model, [buffer], mimeType)).join(' ');
-			return altText;
-		} catch (err: unknown) {
-			// Invalidate token if it's a 401 error
-			if (typeof err === 'object' && err && 'status' in err && err.status === 401) {
-				cachedToken = undefined;
-			}
-			return;
+	try {
+		const api = getApi(model.type);
+		const altText = (await api.create(apiKey, 'Generate alt text for this image', model, [buffer], mimeType)).join(' ');
+		return altText;
+	} catch (err: unknown) {
+		// Invalidate token if it's a 401 error
+		if (typeof err === 'object' && err && 'status' in err && err.status === 401) {
+			cachedToken = undefined;
 		}
+		return;
 	}
 }
