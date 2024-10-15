@@ -529,7 +529,7 @@ export class AltTextGenerator implements vscode.CodeActionProvider {
 
 		const currentLine = document.lineAt(range.start.line).text;
 
-		const match = currentLine.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+		const match = currentLine.match(/!\[\]\(([^)]+)\)/);
 		if (!match) {
 			return;
 		}
@@ -561,7 +561,7 @@ async function generateAltText(model: ChatModel, apiKey: string, imagePath: stri
 
 	try {
 		const api = getApi(model.type);
-		const altText = (await api.create(apiKey, 'Generate alt text for this image', model, [buffer], mimeType)).join(' ');
+		const altText = (await api.create(apiKey, 'Generate alt text for this image. Be very concise. Do not include sighted person info like colors.', model, [buffer], mimeType)).join(' ');
 		return altText;
 	} catch (err: unknown) {
 		// Invalidate token if it's a 401 error
