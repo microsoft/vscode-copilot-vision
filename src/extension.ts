@@ -1,6 +1,8 @@
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import { getApi } from './apiFacade';
+import { AnthropicAuthProvider } from './auth/authProvider';
+import { BetterTokenStorage } from './auth/secretStorage';
 
 dotenv.config();
 
@@ -35,6 +37,8 @@ interface IVisionChatResult extends vscode.ChatResult {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+
+	registerAuthProviders(context);
 
 	// Update API key
 	const updateApiKeyCommand = vscode.commands.registerCommand('copilot.vision.updateApiKey', async () => {
@@ -319,6 +323,15 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
 		// re-throw other errors so they show up in the UI
 		throw err;
 	}
+}
+
+function registerAuthProviders(context: vscode.ExtensionContext) {
+	context.subscriptions.push(vscode.authentication.registerAuthenticationProvider(
+		AnthropicAuthProvider.ID,
+		AnthropicAuthProvider.NAME,
+		new AnthropicAuthProvider(new BetterTokenStorage('anthropic.keylist', context)),
+		{ supportsMultipleAccounts: true }
+	));
 }
 
 function getWebviewContent(htmlContent: string): string {

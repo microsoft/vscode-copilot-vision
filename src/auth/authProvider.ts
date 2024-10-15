@@ -107,8 +107,8 @@ export abstract class BaseAuthProvider implements AuthenticationProvider {
 }
 
 export class AnthropicAuthProvider extends BaseAuthProvider {
-	static readonly ID = 'bing';
-	static readonly NAME = 'Bing';
+	static readonly ID = 'anthropic';
+	static readonly NAME = 'Anthropic';
 
 	protected readonly name = AnthropicAuthProvider.NAME;
 
