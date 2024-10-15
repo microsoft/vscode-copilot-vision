@@ -42,7 +42,7 @@ export function activate(context: vscode.ExtensionContext) {
 	registerAuthProviders(context);
 
 	// Update API key
-	const updateApiKeyCommand = vscode.commands.registerCommand('copilot.vision.updateApiKey', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.updateApiKey', async () => {
 		// Prompt the user to enter a new API key
 		const apiKey = await vscode.window.showInputBox({
 			placeHolder: 'Enter your API key',
@@ -108,7 +108,6 @@ export function activate(context: vscode.ExtensionContext) {
 		// Handle the selected model and input deployment
 		cachedModel = { type: selectedModel.label, deployment: inputDeployment };
 	}));
-	
 	context.subscriptions.push(...registerHtmlPreviewCommands());
 
 	context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
@@ -119,6 +118,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
 		// Default to Azure Open AI, only use a different model if one is selected explicitly
 		// through the model picker command
+		stream.progress('Selecting model...');
 		if (!cachedModel) {
 			cachedModel = {
 				type: ModelType.OpenAI,
@@ -167,10 +167,9 @@ export function activate(context: vscode.ExtensionContext) {
 		stream.progress(`Generating response from ${cachedModel?.type}...`);
 
 		if (!cachedToken) {
-			handleError(logger, new Error('Please provide a valid API key.'), stream);or(logger, new Error('Please provide a valid model and deployment.'), stream);
+			handleError(logger, new Error('Please provide a valid API key.'), stream);
 			return { metadata: { command: '' } };
 		}
-
 
 		const chatVariables = request.references;
 		if (chatVariables.length === 0) {
@@ -313,6 +312,29 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
 		// re-throw other errors so they show up in the UI
 		throw err;
 	}
+}
+
+function registerAuthProviders(context: vscode.ExtensionContext) {
+	context.subscriptions.push(vscode.authentication.registerAuthenticationProvider(
+		OpenAIAuthProvider.ID,
+		OpenAIAuthProvider.NAME,
+		new OpenAIAuthProvider(new BetterTokenStorage('openai.keylist', context)),
+		{ supportsMultipleAccounts: true }
+	));
+
+	context.subscriptions.push(vscode.authentication.registerAuthenticationProvider(
+		AnthropicAuthProvider.ID,
+		AnthropicAuthProvider.NAME,
+		new AnthropicAuthProvider(new BetterTokenStorage('anthropic.keylist', context)),
+		{ supportsMultipleAccounts: true }
+	));
+
+	context.subscriptions.push(vscode.authentication.registerAuthenticationProvider(
+		GeminiAuthProvider.ID,
+		GeminiAuthProvider.NAME,
+		new GeminiAuthProvider(new BetterTokenStorage('gemini.keylist', context)),
+		{ supportsMultipleAccounts: true }
+	));
 }
 
 export function deactivate() { }
