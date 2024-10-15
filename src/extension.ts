@@ -112,40 +112,23 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(modelSelector);
 
-	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.generateAltText', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.generateAltText', async (imagePath) => {
 		const document = vscode.window.activeTextEditor?.document;
 		const currentLine = vscode.window.activeTextEditor?.selection.active.line;
-		if (!cachedToken || !cachedModel || !document || currentLine === undefined) {
+		if (!cachedModel || !cachedToken || !document || currentLine === undefined) {
 			return;
 		}
 
 		const text = document.lineAt(currentLine).text;
-		// TODO: @meganrogge also look at the other formats of markdown images and handle them as well
-		const match = text.match(/!\[([^\]]*)\]\(([^)]+)\)/);
-		if (!match) {
-			return;
-		}
-		const currentAltText = match[1]; // Extract the current alt text
-		const imagePath = match[2]; // Extract the relative path from the parentheses
-
-		if (currentAltText.length) {
-			// To do: also support replacing existing?
+		if (!imagePath) {
 			return;
 		}
 		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), imagePath);
 		const altText = await generateAltText(cachedModel, cachedToken, resolvedImagePath);
-		console.log(altText);
 		if (!altText) {
 			return;
 		}
-		// Calculate the range for the alt text within the document
-		const altTextStart = text.indexOf(currentAltText, match.index) + 2;
-		// const altTextEnd = altTextStart + currentAltText.length;
-		// const altTextRange = new vscode.Range(
-		// 	document.positionAt(altTextStart),
-		// 	document.positionAt(altTextEnd)
-		// );
-
+		const altTextStart = text.indexOf('[]') + 1;
 		const edit = new vscode.WorkspaceEdit();
 		edit.insert(document.uri, new vscode.Position(currentLine, altTextStart), altText);
 		await vscode.workspace.applyEdit(edit);
@@ -529,13 +512,17 @@ export class AltTextGenerator implements vscode.CodeActionProvider {
 
 		const currentLine = document.lineAt(range.start.line).text;
 
+		// TODO: @meganrogge also look at the other formats of markdown images and handle them as well
 		const match = currentLine.match(/!\[\]\(([^)]+)\)/);
 		if (!match) {
 			return;
 		}
-
+		const imagePath = match[1];
+		if (!imagePath) {
+			return;
+		}
 		const fix = new vscode.CodeAction('Generate alt text', vscode.CodeActionKind.QuickFix);
-		fix.command = { 'command': 'copilot.vision.generateAltText', 'title': 'Generate alt text' };
+		fix.command = { 'command': 'copilot.vision.generateAltText', 'title': 'Generate alt text', arguments: [imagePath] };
 
 		return [fix];
 	}
