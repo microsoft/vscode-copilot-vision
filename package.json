@@ -49,6 +49,18 @@
 				"commands": []
 			}
 		],
+		"codeActions": [
+			{
+				"languages": [
+					"markdown"
+				],
+				"actions": {
+					"kind": "quickfix",
+					"command": "copilot.vision.showHtmlPreview",
+					"title": "Copilot Vision: Show HTML Preview"
+				}
+			}
+		],
 		"commands": [
 			{
 				"command": "copilot.vision.showHtmlPreview",

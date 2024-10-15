@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import { getApi } from './apiFacade';
+import { AltTextGenerator } from './altTextGenerator';
 
 dotenv.config();
 
@@ -137,6 +138,12 @@ export function activate(context: vscode.ExtensionContext) {
 		const query = '@vision troubleshoot my VS Code setup, as pictured.';
 		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
 	}));
+
+	context.subscriptions.push(
+		vscode.languages.registerCodeActionsProvider('markdown', new AltTextGenerator(), {
+			providedCodeActionKinds: AltTextGenerator.providedCodeActionKinds
+		})
+	);
 
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
 		// To talk to an LLM in your subcommand handler implementation, your
