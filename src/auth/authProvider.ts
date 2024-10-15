@@ -24,7 +24,6 @@ export abstract class BaseAuthProvider implements AuthenticationProvider {
 	onDidChangeSessions = this._didChangeSessions.event;
 
 	protected abstract readonly name: string;
-	// protected abstract readonly createKeyUrl: string | undefined;
 
 	constructor(private readonly _secrets: BetterTokenStorage<AuthenticationSession>) { }
 
@@ -105,25 +104,21 @@ export abstract class BaseAuthProvider implements AuthenticationProvider {
 		this._didChangeSessions.fire({ added: [], removed: removed ? [removed] : [], changed: [] });
 	}
 }
-
-export class AnthropicAuthProvider extends BaseAuthProvider {
-	static readonly ID = 'anthropic';
-	static readonly NAME = 'Anthropic';
-
-	protected readonly name = AnthropicAuthProvider.NAME;
+abstract class ApiAuthProvider extends BaseAuthProvider {
+	protected abstract readonly modelType: ModelType;
 
 	protected async validateKey(key: string): Promise<boolean> {
 		try {
-			const api = getApi(ModelType.Anthropic);
+			const api = getApi(this.modelType);
 			const config = workspace.getConfiguration();
-			const model: string | undefined = config.get('copilot.vision.model');
+			const model: string | undefined = config.get('copilot.vision.deployment');
 			if (!model) {
 				return false;
 			}
 
 			const ChatModel = {
 				deployment: model,
-				type: ModelType.Anthropic,
+				type: this.modelType,
 			};
 
 			const result = await api.create(key, 'test', ChatModel, [], 'image/png');
@@ -135,4 +130,28 @@ export class AnthropicAuthProvider extends BaseAuthProvider {
 			return false;
 		}
 	}
+}
+
+export class OpenAIAuthProvider extends ApiAuthProvider {
+	static readonly ID = 'OpenAI';
+	static readonly NAME = 'OpenAI GPT';
+
+	protected readonly name = OpenAIAuthProvider.ID;
+	protected readonly modelType = ModelType.OpenAI;
+}
+
+export class AnthropicAuthProvider extends ApiAuthProvider {
+	static readonly ID = 'Anthropic';
+	static readonly NAME = 'Anthropic Claude';
+
+	protected readonly name = AnthropicAuthProvider.NAME;
+	protected readonly modelType = ModelType.Anthropic;
+}
+
+export class GeminiAuthProvider extends ApiAuthProvider {
+	static readonly ID = 'Gemini';
+	static readonly NAME = 'Google Gemini';
+
+	protected readonly name = GeminiAuthProvider.NAME;
+	protected readonly modelType = ModelType.Gemini;
 }
