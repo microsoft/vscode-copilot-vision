@@ -358,7 +358,7 @@ async function generateAltText(model: ChatModel, apiKey: string, imagePath: stri
 		const api = getApi(model.provider);
 		const altText = (await api.create(
 			apiKey,
-			'Generate concise alt text for this image. Focus on essential elements and avoid unnecessary visual details like colors.',
+			'Generate concise alt text for this image. Focus on essential elements and avoid unnecessary visual details like colors. Never include single or double quotes in the alt text.',
 			model,
 			[buffer],
 			mimeType)).join(' ');
