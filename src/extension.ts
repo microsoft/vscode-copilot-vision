@@ -336,7 +336,11 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		}
 		codeAction.edit = new vscode.WorkspaceEdit();
 		const edit = new vscode.WorkspaceEdit();
-		edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);
+		if (codeAction.isHtml) {
+			edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + 3), altText);
+		} else {
+			edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);
+		}
 		codeAction.edit = edit;
 		return codeAction;
 	}
