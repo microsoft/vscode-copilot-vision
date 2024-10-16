@@ -4,7 +4,7 @@ import { TextBlockParam, ImageBlockParam, TextBlock } from "@anthropic-ai/sdk/sr
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI, { AzureOpenAI } from "openai";
 import type { ChatCompletionContentPart, ChatCompletionUserMessageParam } from "openai/resources/index.mjs";
-import { ChatModel, ModelType } from "./extension";
+import { ChatModel, ProviderType } from "./extension";
 
 export interface ApiFacade {
 	create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]>;
@@ -157,15 +157,15 @@ export class AzureOpenAIApi implements ApiFacade {
 	}
 }
 
-export function getApi(type: ModelType): ApiFacade {
+export function getApi(type: ProviderType): ApiFacade {
 	switch (type) {
-		case ModelType.Gemini:
+		case ProviderType.Gemini:
 			return new GeminiApi();
-		case ModelType.Anthropic:
+		case ProviderType.Anthropic:
 			return new AnthropicApi();
-		case ModelType.OpenAI:
+		case ProviderType.OpenAI:
 			return new OpenAIApi();
-		case ModelType.AzureOpenAI:
+		case ProviderType.AzureOpenAI:
 			throw new Error('Azure Open AI does not currently support vision.');
 		default:
 			throw new Error('Invalid model type');

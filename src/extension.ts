@@ -19,7 +19,7 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 let cachedToken: string | undefined;
 let cachedModel: ChatModel | undefined;
 
-export enum ModelType {
+export enum ProviderType {
 	Anthropic = 'Anthropic',
 	OpenAI = 'OpenAI',
 	Gemini = 'Gemini',
@@ -27,7 +27,7 @@ export enum ModelType {
 }
 
 export interface ChatModel {
-	provider: ModelType;
+	provider: ProviderType;
 	model: string;
 }
 
@@ -43,9 +43,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectProviderAndModel', async () => {
 		const providers = [
-			{ label: ModelType.Anthropic },
-			{ label: ModelType.OpenAI },
-			{ label: ModelType.Gemini }
+			{ label: ProviderType.Anthropic },
+			{ label: ProviderType.OpenAI },
+			{ label: ProviderType.Gemini }
 		];
 
 		const selectedModel = await vscode.window.showQuickPick(providers, {
@@ -87,12 +87,12 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Default to Azure Open AI, only use a different model if one is selected explicitly
 		// through the model picker command
 		const config = vscode.workspace.getConfiguration();
-		const provider = config.get<ModelType>('copilot.vision.provider');
+		const provider = config.get<ProviderType>('copilot.vision.provider');
 		const model = config.get<string>('copilot.vision.model')
 
 		if (!cachedModel || (!provider && !model)) {
 			cachedModel = {
-				provider: ModelType.OpenAI,
+				provider: ProviderType.OpenAI,
 				model: 'gpt-4o'
 			}
 		}
@@ -101,7 +101,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			cachedModel = { provider, model };
 		}
 
-		if (cachedModel.provider === ModelType.OpenAI && OPENAI_API_KEY) {
+		if (cachedModel.provider === ProviderType.OpenAI && OPENAI_API_KEY) {
 			cachedToken = OPENAI_API_KEY
 		} else {
 			stream.progress(`Setting ${cachedModel.provider} API key...`);
