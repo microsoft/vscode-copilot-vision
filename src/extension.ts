@@ -85,8 +85,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(
-		vscode.languages.registerCodeActionsProvider('markdown', new AltTextGenerator(), {
-			providedCodeActionKinds: AltTextGenerator.providedCodeActionKinds
+		vscode.languages.registerCodeActionsProvider('markdown', new AltTextQuickFixProvider(), {
+			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
 		})
 	);
 
@@ -295,7 +295,7 @@ interface ImageCodeAction extends vscode.CodeAction {
 	currentLine: string;
 }
 
-export class AltTextGenerator implements vscode.CodeActionProvider<ImageCodeAction> {
+export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 
 	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
