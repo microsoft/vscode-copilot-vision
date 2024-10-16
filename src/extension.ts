@@ -19,7 +19,7 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 let cachedToken: string | undefined;
 let cachedModel: ChatModel | undefined;
 
-export enum ModelType {
+export enum ProviderType {
 	Anthropic = 'Anthropic',
 	OpenAI = 'OpenAI',
 	Gemini = 'Gemini',
@@ -27,8 +27,8 @@ export enum ModelType {
 }
 
 export interface ChatModel {
-	type: ModelType;
-	deployment: string;
+	provider: ProviderType;
+	model: string;
 }
 
 interface IVisionChatResult extends vscode.ChatResult {
@@ -37,20 +37,20 @@ interface IVisionChatResult extends vscode.ChatResult {
 	}
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 
-	registerAuthProviders(context);
+	await registerAuthProviders(context);
 
-	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectModelAndDeployment', async () => {
-		const models = [
-			{ label: ModelType.Anthropic },
-			{ label: ModelType.OpenAI },
-			{ label: ModelType.Gemini }
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectProviderAndModel', async () => {
+		const providers = [
+			{ label: ProviderType.Anthropic },
+			{ label: ProviderType.OpenAI },
+			{ label: ProviderType.Gemini }
 		];
 
-		const selectedModel = await vscode.window.showQuickPick(models, {
+		const selectedModel = await vscode.window.showQuickPick(providers, {
 			// TODO: Localization
-			placeHolder: 'Select a model',
+			placeHolder: 'Select a provider.',
 		});
 
 		if (!selectedModel) {
@@ -58,23 +58,23 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		// Prompt the user to enter a label
-		const inputDeployment = await vscode.window.showInputBox({
-			placeHolder: cachedModel?.deployment ? `Current Deployment: ${cachedModel?.deployment}` : 'Enter a deployment',
-			prompt: 'Please enter a deployment for the selected model. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
+		const inputModel = await vscode.window.showInputBox({
+			placeHolder: cachedModel?.model ? `Current Model: ${cachedModel?.model}` : 'Enter a model',
+			prompt: 'Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
 		});
 
-		if (!inputDeployment) {
+		if (!inputModel) {
 			return;
 		}
 
 		// Update the configuration settings
 		const config = vscode.workspace.getConfiguration();
-		await config.update('copilot.vision.model', selectedModel.label, vscode.ConfigurationTarget.Global);
-		await config.update('copilot.vision.deployment', inputDeployment, vscode.ConfigurationTarget.Global);
+		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
+		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
 		
 
-		// Handle the selected model and input deployment
-		cachedModel = { type: selectedModel.label, deployment: inputDeployment };
+		// Handle the selected provider and input model
+		cachedModel = { provider: selectedModel.label, model: inputModel };
 	}));
 	context.subscriptions.push(...registerHtmlPreviewCommands());
 
@@ -86,26 +86,26 @@ export function activate(context: vscode.ExtensionContext) {
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
 		// Default to Azure Open AI, only use a different model if one is selected explicitly
 		// through the model picker command
-		stream.progress('Selecting model...');
 		const config = vscode.workspace.getConfiguration();
-		const modelType = config.get<ModelType>('copilot.vision.model');
-		const deployment = config.get<string>('copilot.vision.deployment')
+		const provider = config.get<ProviderType>('copilot.vision.provider');
+		const model = config.get<string>('copilot.vision.model')
 
-		if (!cachedModel || (!modelType && !deployment)) {
+		if (!cachedModel || (!provider && !model)) {
 			cachedModel = {
-				type: ModelType.OpenAI,
-				deployment: 'gpt-4o'
+				provider: ProviderType.OpenAI,
+				model: 'gpt-4o'
 			}
 		}
 
-		if (modelType && deployment) {
-			cachedModel = { type: modelType, deployment };
+		if (provider && model) {
+			cachedModel = { provider, model };
 		}
 
-		if (cachedModel.type === ModelType.OpenAI && OPENAI_API_KEY) {
+		if (cachedModel.provider === ProviderType.OpenAI && OPENAI_API_KEY) {
 			cachedToken = OPENAI_API_KEY
 		} else {
-			const session = await vscode.authentication.getSession(cachedModel.type, [], {
+			stream.progress(`Setting ${cachedModel.provider} API key...`);
+			const session = await vscode.authentication.getSession(cachedModel.provider, [], {
 				createIfNone: true,
 			});
 
@@ -117,7 +117,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 
-		stream.progress(`Generating response from ${cachedModel?.type}...`);
+		stream.progress(`Generating response from ${cachedModel?.provider}...`);
 
 		if (!cachedToken) {
 			handleError(logger, new Error('Please provide a valid API key.'), stream);
@@ -166,7 +166,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		try {
-			const api = getApi(cachedModel.type);
+			const api = getApi(cachedModel.provider);
 			const result = await api.create(cachedToken, request.prompt, cachedModel, base64Strings, mimeType);
 			for (const message of result) {
 				stream.markdown(message);
@@ -267,26 +267,26 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
 	}
 }
 
-function registerAuthProviders(context: vscode.ExtensionContext) {
-	context.subscriptions.push(vscode.authentication.registerAuthenticationProvider(
-		OpenAIAuthProvider.ID,
-		OpenAIAuthProvider.NAME,
-		new OpenAIAuthProvider(new ApiKeySecretStorage('openai.keylist', context)),
-		{ supportsMultipleAccounts: true }
-	));
+async function registerAuthProviders(context: vscode.ExtensionContext) {
+	const openAISecretStorage = new ApiKeySecretStorage('openai.keys', context);
+	await openAISecretStorage.initialize();
+	const openAIAuthProvider = new OpenAIAuthProvider(openAISecretStorage);
+	
+	const anthropicSecretStorage = new ApiKeySecretStorage('anthropic.keys', context);
+	await anthropicSecretStorage.initialize();
+	const anthropicAuthProvider = new AnthropicAuthProvider(anthropicSecretStorage);
 
-	context.subscriptions.push(vscode.authentication.registerAuthenticationProvider(
-		AnthropicAuthProvider.ID,
-		AnthropicAuthProvider.NAME,
-		new AnthropicAuthProvider(new ApiKeySecretStorage('anthropic.keylist', context)),
-		{ supportsMultipleAccounts: true }
-	));
-
-	context.subscriptions.push(vscode.authentication.registerAuthenticationProvider(
-		GeminiAuthProvider.ID,
-		GeminiAuthProvider.NAME,
-		new GeminiAuthProvider(new ApiKeySecretStorage('gemini.keylist', context)),
-		{ supportsMultipleAccounts: true }
+	const geminiSecretStorage = new ApiKeySecretStorage('bing.keys', context);
+	await geminiSecretStorage.initialize();
+	const geminiAuthProvider = new GeminiAuthProvider(geminiSecretStorage);
+	
+	context.subscriptions.push(vscode.Disposable.from(
+		openAIAuthProvider,
+		vscode.authentication.registerAuthenticationProvider(OpenAIAuthProvider.ID, OpenAIAuthProvider.NAME, new OpenAIAuthProvider(openAISecretStorage), { supportsMultipleAccounts: true }),
+		anthropicAuthProvider,
+		vscode.authentication.registerAuthenticationProvider(AnthropicAuthProvider.ID, AnthropicAuthProvider.NAME, new AnthropicAuthProvider(anthropicSecretStorage), { supportsMultipleAccounts: true }),
+		geminiAuthProvider,
+		vscode.authentication.registerAuthenticationProvider(GeminiAuthProvider.ID, GeminiAuthProvider.NAME, new GeminiAuthProvider(geminiSecretStorage), { supportsMultipleAccounts: true })
 	));
 }
 

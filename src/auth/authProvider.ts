@@ -17,7 +17,7 @@ import {
 } from 'vscode';
 import { ApiKeyDetails, ApiKeySecretStorage } from './secretStorage';
 import { getApi } from '../apiFacade';
-import { ModelType } from '../extension';
+import { ProviderType } from '../extension';
 
 export abstract class BaseAuthProvider implements AuthenticationProvider {
 	private readonly _disposable: Disposable;
@@ -135,20 +135,20 @@ export abstract class BaseAuthProvider implements AuthenticationProvider {
 	}
 }
 abstract class ApiAuthProvider extends BaseAuthProvider {
-	protected abstract readonly modelType: ModelType;
+	protected abstract readonly modelType: ProviderType;
 
 	protected async validateKey(key: string): Promise<boolean> {
 		try {
 			const api = getApi(this.modelType);
 			const config = workspace.getConfiguration();
-			const model: string | undefined = config.get('copilot.vision.deployment');
+			const model: string | undefined = config.get('copilot.vision.model');
 			if (!model) {
 				throw new Error('Invalid Model');
 			}
 
 			const ChatModel = {
-				deployment: model,
-				type: this.modelType,
+				provider: this.modelType,
+				model
 			};
 
 			const result = await api.create(key, 'test', ChatModel, [], 'image/png');
@@ -167,7 +167,7 @@ export class OpenAIAuthProvider extends ApiAuthProvider {
 	static readonly NAME = 'OpenAI GPT';
 
 	protected readonly name = OpenAIAuthProvider.ID;
-	protected readonly modelType = ModelType.OpenAI;
+	protected readonly modelType = ProviderType.OpenAI;
 }
 
 export class AnthropicAuthProvider extends ApiAuthProvider {
@@ -175,7 +175,7 @@ export class AnthropicAuthProvider extends ApiAuthProvider {
 	static readonly NAME = 'Anthropic Claude';
 
 	protected readonly name = AnthropicAuthProvider.NAME;
-	protected readonly modelType = ModelType.Anthropic;
+	protected readonly modelType = ProviderType.Anthropic;
 }
 
 export class GeminiAuthProvider extends ApiAuthProvider {
@@ -183,5 +183,5 @@ export class GeminiAuthProvider extends ApiAuthProvider {
 	static readonly NAME = 'Google Gemini';
 
 	protected readonly name = GeminiAuthProvider.NAME;
-	protected readonly modelType = ModelType.Gemini;
+	protected readonly modelType = ProviderType.Gemini;
 }
