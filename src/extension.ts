@@ -295,6 +295,7 @@ interface ImageCodeAction extends vscode.CodeAction {
 	resolvedImagePath: string;
 	currentLine: string;
 	altTextStartIndex: number;
+	isHtml?: boolean;
 }
 
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
@@ -320,6 +321,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			document,
 			resolvedImagePath,
 			altTextStartIndex: parsed.altTextStartIndex,
+			isHtml: parsed.isHTML,
 			currentLine
 		}];
 	}
@@ -328,7 +330,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		if (!cachedModel || !cachedToken || token.isCancellationRequested) {
 			return;
 		}
-		const altText = await generateAltText(cachedModel, cachedToken, codeAction.resolvedImagePath);
+		const altText = await generateAltText(cachedModel, cachedToken, codeAction.resolvedImagePath, codeAction.isHtml);
 		if (!altText) {
 			return;
 		}
@@ -340,7 +342,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 	}
 }
 
-async function generateAltText(model: ChatModel, apiKey: string, imagePath: string): Promise<string | undefined> {
+async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml?: boolean): Promise<string | undefined> {
 	const uri = vscode.Uri.file(imagePath);
 	const result = await getBufferAndMimeTypeFromUri(uri);
 	if (!result) {
@@ -355,6 +357,10 @@ async function generateAltText(model: ChatModel, apiKey: string, imagePath: stri
 			model,
 			[buffer],
 			mimeType)).join(' ');
+
+		if (isHtml) {
+			return `img alt="${altText}"`;
+		}
 		return altText;
 	} catch (err: unknown) {
 		// Invalidate token if it's a 401 error

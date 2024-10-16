@@ -16,6 +16,7 @@ suite('imageRegex', () => {
 		assert(match);
 		assert.equal(match.imagePath, 'path/to/image.png');
 		assert.equal(match.altTextStartIndex, 1);
+		assert.equal(match.isHTML, true);
 	});
 
 	test('should capture the image path in markdown link with image syntax', () => {
