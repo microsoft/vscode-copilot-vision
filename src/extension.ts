@@ -295,6 +295,8 @@ interface ImageCodeAction extends vscode.CodeAction {
 	currentLine: string;
 }
 
+// matches images in markdown, html, and markdown links when they do not have alt text
+const imageRegex = /!\[\s*\]\(([^)]+)\)|<img\s+[^>]*src="([^"]+)"[^>]*>|\[!\[\s*\]\(([^)]+)\)\]\(([^)]+)\)/;
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 
@@ -305,12 +307,17 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 
 		const currentLine = document.lineAt(range.start.line).text;
 
-		// TODO: @meganrogge also look at the other formats of markdown images and handle them as well
-		const match = currentLine.match(/!\[\]\(([^)]+)\)/);
+		const match = currentLine.match(imageRegex);
 		if (!match) {
 			return;
 		}
-		const imagePath = match[1];
+		let expectedIndex = 1;
+		if (match.includes('\<')) {
+			expectedIndex = 2;
+		} else if (match[0].startsWith('[![]')) {
+			expectedIndex = 3;
+		}
+		const imagePath = match[expectedIndex];
 		if (!imagePath) {
 			return;
 		}
