@@ -1,47 +1,40 @@
 import assert from 'assert';
 import { suite, test } from 'mocha';
-
-// when I import this from extension.ts, the test throws saying ChatVariableData is not defined
-const imageRegex = /!\[\s*\]\(([^)]+)\)|<img\s+[^>]*src="([^"]+)"[^>]*>|\[!\[\s*\]\(([^)]+)\)\]\(([^)]+)\)/;
+import { parseLine } from '../imageUtils';
 
 suite('imageRegex', () => {
 	test('should capture the image path in markdown image syntax', () => {
 		const markdownImage = '![](path/to/image.png)';
-		const match = markdownImage.match(imageRegex);
+		const match = parseLine(markdownImage);
 		assert(match);
-		assert.equal(match![1], 'path/to/image.png');
+		assert.equal(match.imagePath, 'path/to/image.png');
 	});
 
 	test('should capture the image path in HTML image syntax', () => {
 		const htmlImage = '<img src="path/to/image.png" />';
-		const match = htmlImage.match(imageRegex);
+		const match = parseLine(htmlImage);
 		assert(match);
-		assert.equal(match![2], 'path/to/image.png');
+		assert.equal(match.imagePath, 'path/to/image.png');
+		assert.equal(match.altTextStartIndex, 1);
 	});
 
 	test('should capture the image path in markdown link with image syntax', () => {
 		const markdownLinkImage = '[![](path/to/image.png)](http://example.com)';
-		const match = markdownLinkImage.match(imageRegex);
+		const match = parseLine(markdownLinkImage);
 		assert(match);
-		assert.equal(match![3], 'path/to/image.png');
-	});
-
-	test('should capture the link path in markdown link with image syntax', () => {
-		const markdownLinkImage = '[![](path/to/image.png)](http://example.com)';
-		const match = markdownLinkImage.match(imageRegex);
-		assert(match);
-		assert.equal(match![3], 'path/to/image.png');
+		assert.equal(match.imagePath, 'path/to/image.png');
+		assert.equal(match.altTextStartIndex, 3);
 	});
 
 	test('should not match if there is alt text in markdown image syntax', () => {
 		const markdownImageWithAlt = '![alt text](path/to/image.png)';
-		const match = markdownImageWithAlt.match(imageRegex);
+		const match = parseLine(markdownImageWithAlt);
 		assert(!match);
 	});
 
 	test('should not match if there is alt text in markdown link with image syntax', () => {
 		const markdownLinkImageWithAlt = '[![alt text](path/to/image.png)](http://example.com)';
-		const match = markdownLinkImageWithAlt.match(imageRegex);
+		const match = parseLine(markdownLinkImageWithAlt)
 		assert(!match);
 	});
 });

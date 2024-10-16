@@ -5,7 +5,7 @@ import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { parseImagePath } from './imageUtils';
+import { parseLine as parseLine } from './imageUtils';
 
 dotenv.config();
 
@@ -306,7 +306,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		}
 
 		const currentLine = document.lineAt(range.start.line).text;
-		const parsed = parseImagePath(currentLine);
+		const parsed = parseLine(currentLine);
 
 		if (!parsed) {
 			return;
