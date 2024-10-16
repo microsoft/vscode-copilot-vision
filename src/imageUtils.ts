@@ -1,4 +1,6 @@
 
+import * as vscode from 'vscode';
+
 // matches images in markdown, html, and markdown links when they do not have alt text
 const imageRegex = /!\[\s*\]\(([^)]+)\)|<img\s+[^>]*src="([^"]+)"[^>]*>|\[!\[\s*\]\(([^)]+)\)\]\(([^)]+)\)/;
 // matches images in markdown, html, and markdown links when they do have alt text
@@ -48,4 +50,23 @@ export function extractImageInfo(line: string, refineResult?: boolean): { imageP
 		altText = match[altTextMatchIndex];
 	}
 	return { imagePath, altTextStartIndex, isHTML, altTextLength: altText.length };
+}
+
+const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
+export async function getBufferAndMimeTypeFromUri(uri: vscode.Uri): Promise<{ buffer: Buffer, mimeType: string } | undefined> {
+	const fileExtension = uri.path.split('.').pop()?.toLowerCase();
+	if (!fileExtension || !imageExtensions.includes(fileExtension)) {
+		return;
+	}
+
+	const buffer = Buffer.from(await vscode.workspace.fs.readFile(uri));
+	const mimeType = getMimeType(fileExtension)
+	return { buffer, mimeType };
+}
+
+function getMimeType(ext: string) {
+	if (ext === 'jpg') {
+		return 'image/jpeg';
+	}
+	return `image/${ext}`;
 }

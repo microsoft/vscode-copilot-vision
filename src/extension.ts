@@ -5,18 +5,14 @@ import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { extractImageInfo } from './imageUtils';
+import { extractImageInfo, getBufferAndMimeTypeFromUri } from './imageUtils';
 
 dotenv.config();
 
 const VISION_PARTICIPANT_ID = 'chat-sample.vision';
 
 // OpenAI credentials
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-// Anthropic
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 let cachedToken: string | undefined;
 let cachedModel: ChatModel | undefined;
@@ -480,21 +476,3 @@ async function generateAltText(model: ChatModel, apiKey: string, imagePath: stri
 	}
 }
 
-const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
-async function getBufferAndMimeTypeFromUri(uri: vscode.Uri): Promise<{ buffer: Buffer, mimeType: string } | undefined> {
-	const fileExtension = uri.path.split('.').pop()?.toLowerCase();
-	if (!fileExtension || !imageExtensions.includes(fileExtension)) {
-		return;
-	}
-
-	const buffer = Buffer.from(await vscode.workspace.fs.readFile(uri));
-	const mimeType = getMimeType(fileExtension)
-	return { buffer, mimeType };
-}
-
-function getMimeType(ext: string) {
-	if (ext === 'jpg') {
-		return 'image/jpeg';
-	}
-	return `image/${ext}`;
-}
