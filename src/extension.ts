@@ -324,8 +324,6 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 	// a class that allows you to generate more verbose alt text or provide a custom query
 	onDidChangeCodeLenses?: vscode.Event<void> | undefined;
 	provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
-		// const currentLine = document.lineAt(range.start.line).text;
-		// get current line from document
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
 			return [];
