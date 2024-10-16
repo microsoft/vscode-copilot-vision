@@ -2,6 +2,9 @@ import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import { getApi } from './apiFacade';
 import path from 'path';
+import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
+import { ApiKeySecretStorage } from './auth/secretStorage';
+import { registerHtmlPreviewCommands } from './htmlPreview';
 
 dotenv.config();
 
@@ -17,7 +20,7 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 let cachedToken: string | undefined;
 let cachedModel: ChatModel | undefined;
 
-export enum ModelType {
+export enum ProviderType {
 	Anthropic = 'Anthropic',
 	OpenAI = 'OpenAI',
 	Gemini = 'Gemini',
@@ -25,8 +28,8 @@ export enum ModelType {
 }
 
 export interface ChatModel {
-	type: ModelType;
-	deployment: string;
+	provider: ProviderType;
+	model: string;
 }
 
 interface IVisionChatResult extends vscode.ChatResult {
@@ -35,38 +38,20 @@ interface IVisionChatResult extends vscode.ChatResult {
 	}
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 
-	// Update API key
-	const updateApiKeyCommand = vscode.commands.registerCommand('copilot.vision.updateApiKey', async () => {
-		// Prompt the user to enter a new API key
-		const apiKey = await vscode.window.showInputBox({
-			placeHolder: 'Enter your API key',
-			prompt: 'Please enter the API key',
-			password: true
-		});
+	await registerAuthProviders(context);
 
-		if (!apiKey) {
-			vscode.window.showErrorMessage('No API key entered.');
-			return;
-		}
-
-		// Update the cached token
-		cachedToken = apiKey;
-	});
-
-	context.subscriptions.push(updateApiKeyCommand);
-
-	const modelSelector = vscode.commands.registerCommand('copilot.vision.selectModelAndDeployment', async () => {
-		const models = [
-			{ label: ModelType.Anthropic },
-			{ label: ModelType.OpenAI },
-			{ label: ModelType.Gemini }
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectProviderAndModel', async () => {
+		const providers = [
+			{ label: ProviderType.Anthropic },
+			{ label: ProviderType.OpenAI },
+			{ label: ProviderType.Gemini }
 		];
 
-		const selectedModel = await vscode.window.showQuickPick(models, {
+		const selectedModel = await vscode.window.showQuickPick(providers, {
 			// TODO: Localization
-			placeHolder: 'Select a model',
+			placeHolder: 'Select a provider.',
 		});
 
 		if (!selectedModel) {
@@ -74,65 +59,25 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		// Prompt the user to enter a label
-		const inputDeployment = await vscode.window.showInputBox({
-			placeHolder: cachedModel?.deployment ? `Current Deployment: ${cachedModel?.deployment}` : 'Enter a deployment',
-			prompt: 'Please enter a deployment for the selected model. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
+		const inputModel = await vscode.window.showInputBox({
+			placeHolder: cachedModel?.model ? `Current Model: ${cachedModel?.model}` : 'Enter a model',
+			prompt: 'Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
 		});
 
-		if (!inputDeployment) {
+		if (!inputModel) {
 			return;
-		}
-
-		// Prompt the user to enter an API key
-		const inputApiKey = await vscode.window.showInputBox({
-			placeHolder: 'Enter your API key',
-			prompt: 'Please enter the API key for the selected model',
-			password: true
-		});
-
-		if (!inputApiKey) {
-			return;
-		}
-
-		cachedToken = inputApiKey;
-
-		if (!cachedToken) { // Normalize
-			cachedToken = undefined;
 		}
 
 		// Update the configuration settings
 		const config = vscode.workspace.getConfiguration();
-		await config.update('copilot.vision.model', selectedModel.label, vscode.ConfigurationTarget.Global);
-		await config.update('copilot.vision.deployment', inputDeployment, vscode.ConfigurationTarget.Global);
+		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
+		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
 		
 
-		// Handle the selected model and input deployment
-		cachedModel = { type: selectedModel.label, deployment: inputDeployment };
-	});
-
-	context.subscriptions.push(modelSelector);
-
-	const disposable = vscode.commands.registerCommand('copilot.vision.showHtmlPreview', () => {
-		const panel = vscode.window.createWebviewPanel(
-			'htmlPreview', // Identifies the type of the webview. Used internally
-			'HTML Preview', // Title of the panel displayed to the user
-			vscode.ViewColumn.One, // Editor column to show the new webview panel in
-			{
-				enableScripts: true // Enable scripts in the webview
-			}
-		);
-
-		// Set the HTML content for the webview
-		const editor = vscode.window.activeTextEditor;
-		if (editor) {
-			const htmlContent = editor.document.getText();
-			panel.webview.html = getWebviewContent(htmlContent);
-		} else {
-			vscode.window.showErrorMessage('No active text editor found.');
-		}
-	});
-
-	context.subscriptions.push(disposable);
+		// Handle the selected provider and input model
+		cachedModel = { provider: selectedModel.label, model: inputModel };
+	}));
+	context.subscriptions.push(...registerHtmlPreviewCommands());
 
 	context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
 		const query = '@vision troubleshoot my VS Code setup, as pictured.';
@@ -146,34 +91,47 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
-		// To talk to an LLM in your subcommand handler implementation, your
-		// extension can use VS Code's `requestChatAccess` API to access the Copilot API.
-		// The GitHub Copilot Chat extension implements this provider.
+		// Default to Azure Open AI, only use a different model if one is selected explicitly
+		// through the model picker command
+		const config = vscode.workspace.getConfiguration();
+		const provider = config.get<ProviderType>('copilot.vision.provider');
+		const model = config.get<string>('copilot.vision.model')
 
-		// This just converts our sources/references into more digestible format. Helpful for more complex variables.
-		// const chatVariables = new ChatVariablesCollection(request.references);;
-
-		const chatVariables = request.references;
-		if (!cachedModel) {
-			stream.progress('Selecting model...');
+		if (!cachedModel || (!provider && !model)) {
+			cachedModel = {
+				provider: ProviderType.OpenAI,
+				model: 'gpt-4o'
+			}
 		}
 
-		const model = await getModelAndDeployment();
+		if (provider && model) {
+			cachedModel = { provider, model };
+		}
 
-		stream.progress(`Generating response from ${cachedModel?.type}...`);
+		if (cachedModel.provider === ProviderType.OpenAI && OPENAI_API_KEY) {
+			cachedToken = OPENAI_API_KEY
+		} else {
+			stream.progress(`Setting ${cachedModel.provider} API key...`);
+			const session = await vscode.authentication.getSession(cachedModel.provider, [], {
+				createIfNone: true,
+			});
+
+			if (!session) {
+				throw new Error('Please provide an API key to use this feature.');
+			}
+
+			cachedToken = session.accessToken;
+		}
+
+
+		stream.progress(`Generating response from ${cachedModel?.provider}...`);
 
 		if (!cachedToken) {
 			handleError(logger, new Error('Please provide a valid API key.'), stream);
 			return { metadata: { command: '' } };
 		}
 
-		if (!model?.type || !model.deployment) {
-			handleError(logger, new Error('Please provide a valid model and deployment.'), stream);
-			return { metadata: { command: '' } };
-		}
-
-		const apiKey = cachedToken;
-
+		const chatVariables = request.references;
 		if (chatVariables.length === 0) {
 			stream.markdown('I need a picture to generate a response.');
 			return { metadata: { command: '' } };
@@ -215,8 +173,8 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		try {
-			const api = getApi(model.type);
-			const result = await api.create(apiKey, request.prompt, model, base64Strings, mimeType);
+			const api = getApi(cachedModel.provider);
+			const result = await api.create(cachedToken, request.prompt, cachedModel, base64Strings, mimeType);
 			for (const message of result) {
 				stream.markdown(message);
 			}
@@ -270,6 +228,7 @@ async function getOpenAiApiToken(): Promise<string | undefined> {
 
 	// Get from simple input box
 	const inputBox = vscode.window.createInputBox();
+	inputBox.ignoreFocusOut = true;
 	inputBox.title = 'Enter Azure OpenAI API Key';
 	const disposables: vscode.Disposable[] = [];
 	const value = new Promise<string | undefined>(r => {
@@ -297,19 +256,6 @@ async function getOpenAiApiToken(): Promise<string | undefined> {
 	return cachedToken;
 }
 
-async function getModelAndDeployment(): Promise<ChatModel | undefined> {
-	// Return cached model if available
-	if (cachedModel) {
-		return cachedModel;
-	}
-
-	// If no cachedModel, run the command that makes a user select the model
-	if (!cachedModel) {
-		await vscode.commands.executeCommand('copilot.vision.selectModelAndDeployment');
-		return cachedModel;
-	}
-}
-
 function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.ChatResponseStream): void {
 	// making the chat request might fail because
 	// - model does not exist
@@ -328,153 +274,27 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
 	}
 }
 
-function getWebviewContent(htmlContent: string): string {
-	return `
-		<!DOCTYPE html>
-		<html lang="en">
-		<head>
-			<meta charset="UTF-8">
-			<meta name="viewport" content="width=device-width, initial-scale=1.0">
-			<title>HTML Preview</title>
-			<style>
-				body, html {
-					margin: 0;
-					padding: 0;
-					height: 100%;
-					width: 100%;
-					position: relative;
-					overflow: hidden;
-				}
-				.content {
-					position: relative;
-					z-index: 1;
-					padding-top: 60px; /* Ensure buttons don't overlap the content */
-				}
-				.canvas-container {
-					position: absolute;
-					top: 0;
-					left: 0;
-					width: 100%;
-					height: 100%;
-					z-index: 2;
-				}
-				canvas {
-					width: 100%;
-					height: 100%;
-					border: none;
-				}
-				.controls {
-					position: fixed;
-					top: 10px;
-					left: 10px;
-					z-index: 9999;
-					display: flex;
-					flex-direction: row; /* Display in a row */
-					gap: 10px; /* Add space between controls */
-				}
-				.controls button, .controls input, .controls select {
-					padding: 10px;
-					background-color: #4CAF50;
-					color: white;
-					border: none;
-					border-radius: 5px;
-					cursor: pointer;
-				}
-				.controls button:hover {
-					background-color: #45a049;
-				}
-			</style>
-		</head>
-		<body>
-			<div class="content">
-				${htmlContent}
-			</div>
-			<div class="canvas-container">
-				<canvas id="canvas"></canvas>
-			</div>
-			<div class="controls">
-				<button id="exportBtn">Export as Image</button>
-				<input type="color" id="colorPicker" value="#000000">
-				<select id="shapePicker">
-					<option value="draw">Draw</option>
-					<option value="rectangle">Rectangle</option>
-					<option value="circle">Circle</option>
-				</select>
-			</div>
+async function registerAuthProviders(context: vscode.ExtensionContext) {
+	const openAISecretStorage = new ApiKeySecretStorage('openai.keys', context);
+	await openAISecretStorage.initialize();
+	const openAIAuthProvider = new OpenAIAuthProvider(openAISecretStorage);
+	
+	const anthropicSecretStorage = new ApiKeySecretStorage('anthropic.keys', context);
+	await anthropicSecretStorage.initialize();
+	const anthropicAuthProvider = new AnthropicAuthProvider(anthropicSecretStorage);
 
-			<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.5.0/fabric.min.js"></script>
-			<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.5.0-beta4/html2canvas.min.js"></script>
-			<script>
-				const canvasElement = document.getElementById('canvas');
-				const canvas = new fabric.Canvas(canvasElement);
-
-				// Make canvas fill the screen and allow drawing
-				canvas.setWidth(window.innerWidth);
-				canvas.setHeight(window.innerHeight);
-				canvas.isDrawingMode = true;
-
-				// Adjust canvas size when window is resized
-				window.addEventListener('resize', () => {
-					canvas.setWidth(window.innerWidth);
-					canvas.setHeight(window.innerHeight);
-					canvas.renderAll();
-				});
-
-				// Change pen color
-				document.getElementById('colorPicker').addEventListener('change', function() {
-					canvas.freeDrawingBrush.color = this.value;
-				});
-
-				// Shape drawing
-				document.getElementById('shapePicker').addEventListener('change', function() {
-					canvas.isDrawingMode = this.value === 'draw';
-					if (this.value === 'rectangle') {
-						const rect = new fabric.Rect({
-							left: 100,
-							top: 100,
-							fill: canvas.freeDrawingBrush.color,
-							width: 200,
-							height: 100
-						});
-						canvas.add(rect);
-					} else if (this.value === 'circle') {
-						const circle = new fabric.Circle({
-							left: 150,
-							top: 150,
-							radius: 50,
-							fill: canvas.freeDrawingBrush.color
-						});
-						canvas.add(circle);
-					}
-				});
-
-				// Export the combined HTML and canvas as an image
-				document.getElementById('exportBtn').addEventListener('click', () => {
-					html2canvas(document.querySelector('.content')).then(htmlCanvas => {
-						const finalCanvas = document.createElement('canvas');
-						finalCanvas.width = htmlCanvas.width;
-						finalCanvas.height = htmlCanvas.height;
-						const ctx = finalCanvas.getContext('2d');
-
-						ctx.drawImage(htmlCanvas, 0, 0);
-
-						const fabricCanvasImage = canvas.toDataURL();
-						const img = new Image();
-						img.src = fabricCanvasImage;
-						img.onload = () => {
-							ctx.drawImage(img, 0, 0);
-							const finalImage = finalCanvas.toDataURL("image/png");
-							const link = document.createElement('a');
-							link.href = finalImage;
-							link.download = 'exported-image.png';
-							link.click();
-						};
-					});
-				});
-			</script>
-		</body>
-		</html>
-	`;
+	const geminiSecretStorage = new ApiKeySecretStorage('bing.keys', context);
+	await geminiSecretStorage.initialize();
+	const geminiAuthProvider = new GeminiAuthProvider(geminiSecretStorage);
+	
+	context.subscriptions.push(vscode.Disposable.from(
+		openAIAuthProvider,
+		vscode.authentication.registerAuthenticationProvider(OpenAIAuthProvider.ID, OpenAIAuthProvider.NAME, new OpenAIAuthProvider(openAISecretStorage), { supportsMultipleAccounts: true }),
+		anthropicAuthProvider,
+		vscode.authentication.registerAuthenticationProvider(AnthropicAuthProvider.ID, AnthropicAuthProvider.NAME, new AnthropicAuthProvider(anthropicSecretStorage), { supportsMultipleAccounts: true }),
+		geminiAuthProvider,
+		vscode.authentication.registerAuthenticationProvider(GeminiAuthProvider.ID, GeminiAuthProvider.NAME, new GeminiAuthProvider(geminiSecretStorage), { supportsMultipleAccounts: true })
+	));
 }
 
 export function deactivate() { }
