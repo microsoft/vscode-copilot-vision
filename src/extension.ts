@@ -368,7 +368,7 @@ async function generateAltText(model: ChatModel, apiKey: string, imagePath: stri
 
 	try {
 		const api = getApi(model.provider);
-		const altText = (await api.create(apiKey, 'Generate alt text for this image. Be very concise. Do not include sighted person info like colors.', model, [buffer], mimeType)).join(' ');
+		const altText = (await api.create(apiKey, 'Generate concise alt text for this image. Focus on essential elements and avoid unnecessary visual details like colors.', model, [buffer], mimeType)).join(' ');
 		return altText;
 	} catch (err: unknown) {
 		// Invalidate token if it's a 401 error
