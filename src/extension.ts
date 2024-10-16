@@ -309,10 +309,6 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 
 	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
-		if (!cachedToken || !cachedModel) {
-			await initializeProviderAndModel();
-		}
-
 		const currentLine = document.lineAt(range.start.line).text;
 		const parsed = extractImageInfo(currentLine);
 
@@ -334,7 +330,13 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 	}
 
 	async resolveCodeAction(codeAction: ImageCodeAction, token: vscode.CancellationToken): Promise<ImageCodeAction | undefined> {
-		if (!cachedModel || !cachedToken || token.isCancellationRequested) {
+		if (token.isCancellationRequested) {
+			return;
+		}
+		if (!cachedToken || !cachedModel) {
+			await initializeProviderAndModel();
+		}
+		if (!cachedToken || !cachedModel) {
 			return;
 		}
 		const altText = await generateAltText(cachedModel, cachedToken, codeAction.resolvedImagePath, codeAction.isHtml);
