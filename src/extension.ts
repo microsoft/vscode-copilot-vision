@@ -5,6 +5,7 @@ import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
+import { parseImagePath } from './imageUtils';
 
 dotenv.config();
 
@@ -293,10 +294,9 @@ interface ImageCodeAction extends vscode.CodeAction {
 	range: vscode.Range;
 	resolvedImagePath: string;
 	currentLine: string;
+	altTextStartIndex: number;
 }
 
-// matches images in markdown, html, and markdown links when they do not have alt text
-const imageRegex = /!\[\s*\]\(([^)]+)\)|<img\s+[^>]*src="([^"]+)"[^>]*>|\[!\[\s*\]\(([^)]+)\)\]\(([^)]+)\)/;
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 
@@ -306,29 +306,20 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		}
 
 		const currentLine = document.lineAt(range.start.line).text;
+		const parsed = parseImagePath(currentLine);
 
-		const match = currentLine.match(imageRegex);
-		if (!match) {
-			return;
-		}
-		let expectedIndex = 1;
-		if (match.includes('\<')) {
-			expectedIndex = 2;
-		} else if (match[0].startsWith('[![]')) {
-			expectedIndex = 3;
-		}
-		const imagePath = match[expectedIndex];
-		if (!imagePath) {
+		if (!parsed) {
 			return;
 		}
 
-		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), imagePath);
+		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
 		return [{
 			title: 'Generate alt text',
 			kind: vscode.CodeActionKind.QuickFix,
 			range,
 			document,
 			resolvedImagePath,
+			altTextStartIndex: parsed.altTextStartIndex,
 			currentLine
 		}];
 	}
@@ -342,9 +333,8 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			return;
 		}
 		codeAction.edit = new vscode.WorkspaceEdit();
-		const altTextStart = codeAction.currentLine.indexOf('[]') + 1;
 		const edit = new vscode.WorkspaceEdit();
-		edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, altTextStart), altText);
+		edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);
 		codeAction.edit = edit;
 		return codeAction;
 	}
