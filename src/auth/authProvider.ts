@@ -141,14 +141,14 @@ abstract class ApiAuthProvider extends BaseAuthProvider {
 		try {
 			const api = getApi(this.modelType);
 			const config = workspace.getConfiguration();
-			const model: string | undefined = config.get('copilot.vision.deployment');
+			const model: string | undefined = config.get('copilot.vision.model');
 			if (!model) {
 				throw new Error('Invalid Model');
 			}
 
 			const ChatModel = {
-				deployment: model,
-				type: this.modelType,
+				provider: this.modelType,
+				model
 			};
 
 			const result = await api.create(key, 'test', ChatModel, [], 'image/png');

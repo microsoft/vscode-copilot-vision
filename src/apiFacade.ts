@@ -27,7 +27,7 @@ export class AnthropicApi implements ApiFacade {
 			const result = await client.messages.create({
 				max_tokens: 1024,
 				messages: [{ role: 'user', content: prompts }],
-				model: provider.deployment, //'claude-3-opus-20240229'
+				model: provider.model, //'claude-3-opus-20240229'
 			});
 
 			return result.content.map((content: ContentBlock) => content.type === 'text' ? (content as TextBlock).text : '');
@@ -60,7 +60,7 @@ export class OpenAIApi implements ApiFacade {
 			});
 
 			const result = await openAi.chat.completions.create({
-				model: provider.deployment, // gpt-4o
+				model: provider.model, // gpt-4o
 				messages: [
 					{ role: 'user', content: prompts }
 				]
@@ -98,7 +98,7 @@ export class GeminiApi implements ApiFacade {
 			}
 
 			const genAI = new GoogleGenerativeAI(apiKey);
-			const model = genAI.getGenerativeModel({ model: provider.deployment }); // 'gemini-1.5-flash'
+			const model = genAI.getGenerativeModel({ model: provider.model }); // 'gemini-1.5-flash'
 			const result = await model.generateContent([request, ...imageParts]);
 
 			const messages = [];
@@ -120,8 +120,8 @@ export class AzureOpenAIApi implements ApiFacade {
 			// EXAMPLE OF USING AZURE OPENAI
 			const endpoint = process.env["AZURE_ENDPOINT"] || "https://vscode-openai.openai.azure.com/";
 			const apiVersion = "2024-05-01-preview";
-			const deployment = provider.deployment; // gpt-4o-mini or Gpt4
-			const client = new AzureOpenAI({ endpoint, apiVersion, deployment, apiKey });
+			const model = provider.model; // gpt-4o-mini or Gpt4
+			const client = new AzureOpenAI({ endpoint, apiVersion, deployment: model, apiKey });
 
 			const prompts: ChatCompletionUserMessageParam[] = [
 				{ role: 'user', content: request },
@@ -134,7 +134,7 @@ export class AzureOpenAIApi implements ApiFacade {
 
 			const result = await client.chat.completions.create({
 				messages: prompts,
-				model: deployment,
+				model,
 				max_tokens: 8192,
 				temperature: 0.7,
 				top_p: 0.95,

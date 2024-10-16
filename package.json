@@ -22,7 +22,7 @@
 	"contributes": {
 		"configuration": {
 			"properties": {
-				"copilot.vision.model": {
+				"copilot.vision.provider": {
 					"type": "string",
 					"enum": [
 						"OpenAI",
@@ -30,12 +30,12 @@
 						"Gemini"
 					],
 					"default": "OpenAI",
-					"description": "The selected model type"
+					"description": "The selected provider."
 				},
-				"copilot.vision.deployment": {
+				"copilot.vision.model": {
 					"type": "string",
 					"default": "gpt-4o",
-					"description": "The deployment for the selected model"
+					"description": "The model for the selected provider."
 				}
 			}
 		},
@@ -55,8 +55,8 @@
 				"title": "Copilot Vision: Show HTML Preview"
 			},
 			{
-				"command": "copilot.vision.selectModelAndDeployment",
-				"title": "Copilot Vision: Set Model and Deployment"
+				"command": "copilot.vision.selectProviderAndModel",
+				"title": "Copilot Vision: Set a provider and model."
 			},
 			{
 				"command": "troubleshootWithVision",
