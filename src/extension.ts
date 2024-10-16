@@ -316,7 +316,14 @@ export class AltTextGenerator implements vscode.CodeActionProvider<ImageCodeActi
 		}
 
 		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), imagePath);
-		return [{ title: 'Generate alt text', kind: vscode.CodeActionKind.QuickFix, range, document, resolvedImagePath, currentLine }] as ImageCodeAction[];
+		return [{
+			title: 'Generate alt text',
+			kind: vscode.CodeActionKind.QuickFix,
+			range,
+			document,
+			resolvedImagePath,
+			currentLine
+		}];
 	}
 
 	async resolveCodeAction(codeAction: ImageCodeAction, token: vscode.CancellationToken): Promise<ImageCodeAction | undefined> {
@@ -343,10 +350,14 @@ async function generateAltText(model: ChatModel, apiKey: string, imagePath: stri
 		return;
 	}
 	const { buffer, mimeType } = result;
-
 	try {
 		const api = getApi(model.provider);
-		const altText = (await api.create(apiKey, 'Generate concise alt text for this image. Focus on essential elements and avoid unnecessary visual details like colors.', model, [buffer], mimeType)).join(' ');
+		const altText = (await api.create(
+			apiKey,
+			'Generate concise alt text for this image. Focus on essential elements and avoid unnecessary visual details like colors.',
+			model,
+			[buffer],
+			mimeType)).join(' ');
 		return altText;
 	} catch (err: unknown) {
 		// Invalidate token if it's a 401 error
@@ -368,7 +379,6 @@ async function getBufferAndMimeTypeFromUri(uri: vscode.Uri): Promise<{ buffer: B
 	const mimeType = getMimeType(fileExtension)
 	return { buffer, mimeType };
 }
-
 
 function getMimeType(ext: string) {
 	if (ext === 'jpg') {
