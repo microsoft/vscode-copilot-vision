@@ -1,11 +1,12 @@
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
-import { getApi } from './apiFacade';
 import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { extractImageInfo, getBufferAndMimeTypeFromUri } from './imageUtils';
+import { extractImageInfo, generateAltText, getBufferAndMimeTypeFromUri } from './imageUtils';
+import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
+import { getApi } from './apiFacade';
 
 dotenv.config();
 
@@ -282,7 +283,7 @@ async function registerAuthProviders(context: vscode.ExtensionContext) {
 	));
 }
 
-async function initializeModelAndToken(stream?: vscode.ChatResponseStream) {
+export async function initializeModelAndToken(stream?: vscode.ChatResponseStream): Promise<{ cachedToken: string | undefined, cachedModel: ChatModel | undefined }> {
 	// Default to Azure Open AI, only use a different model if one is selected explicitly
 	// through the model picker command
 	const config = vscode.workspace.getConfiguration();
@@ -314,70 +315,10 @@ async function initializeModelAndToken(stream?: vscode.ChatResponseStream) {
 
 		cachedToken = session.accessToken;
 	}
+	return { cachedToken, cachedModel };
 }
 
 export function deactivate() { }
-
-
-interface ImageCodeAction extends vscode.CodeAction {
-	document: vscode.TextDocument;
-	range: vscode.Range;
-	resolvedImagePath: string;
-	currentLine: string;
-	altTextStartIndex: number;
-	isHtml: boolean;
-}
-
-export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
-	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
-
-	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
-		const currentLine = document.lineAt(range.start.line).text;
-		const parsed = extractImageInfo(currentLine);
-
-		if (!parsed) {
-			return;
-		}
-
-		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
-		return [{
-			title: 'Generate alt text',
-			kind: vscode.CodeActionKind.QuickFix,
-			range,
-			document,
-			resolvedImagePath,
-			altTextStartIndex: parsed.altTextStartIndex,
-			isHtml: parsed.isHTML,
-			currentLine
-		}];
-	}
-
-	async resolveCodeAction(codeAction: ImageCodeAction, token: vscode.CancellationToken): Promise<ImageCodeAction | undefined> {
-		if (token.isCancellationRequested) {
-			return;
-		}
-		if (!cachedToken || !cachedModel) {
-			await initializeModelAndToken();
-		}
-		if (!cachedToken || !cachedModel) {
-			return;
-		}
-		const altText = await generateAltText(cachedModel, cachedToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise');
-		if (!altText) {
-			return;
-		}
-		codeAction.edit = new vscode.WorkspaceEdit();
-		const edit = new vscode.WorkspaceEdit();
-		if (codeAction.isHtml) {
-			// Replace the `img` from `img src` with `img alt="`
-			edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + 3), altText);
-		} else {
-			edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);
-		}
-		codeAction.edit = edit;
-		return codeAction;
-	}
-}
 
 export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 	// a class that allows you to generate more verbose alt text or provide a custom query
@@ -434,45 +375,4 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 	}
 }
 
-async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml: boolean, type: 'verbose' | 'concise' | 'query'): Promise<string | undefined> {
-	const uri = vscode.Uri.file(imagePath);
-	const result = await getBufferAndMimeTypeFromUri(uri);
-	if (!result) {
-		return;
-	}
-	const { buffer, mimeType } = result;
-	let query = (type === 'concise' ? 'Generate concise alt text for this image.' : 'Generate alt text for this image.') + 'Focus on essential elements and avoid unnecessary visual details like colors. Never include single or double quotes in the alt text.';
-	if (type === 'query') {
-		const userQuery = await vscode.window.showInputBox({
-			placeHolder: 'Enter additional details for the alt text generation',
-			prompt: 'Specify more information about the alt text you want for the image.'
-		});
-
-		if (!userQuery) {
-			return;
-		}
-
-		query = `${query} ${userQuery}`;
-	}
-	try {
-		const api = getApi(model.provider);
-		const altText = (await api.create(
-			apiKey,
-			query,
-			model,
-			[buffer],
-			mimeType)).join(' ');
-
-		if (isHtml) {
-			return `img alt="${altText}"`;
-		}
-		return altText;
-	} catch (err: unknown) {
-		// Invalidate token if it's a 401 error
-		if (typeof err === 'object' && err && 'status' in err && err.status === 401) {
-			cachedToken = undefined;
-		}
-		return;
-	}
-}
 
