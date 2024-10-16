@@ -337,6 +337,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		codeAction.edit = new vscode.WorkspaceEdit();
 		const edit = new vscode.WorkspaceEdit();
 		if (codeAction.isHtml) {
+			// We repace the `img` prefix with `img alt="`
 			edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + 3), altText);
 		} else {
 			edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);
