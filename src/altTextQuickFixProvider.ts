@@ -1,7 +1,8 @@
 
 import * as vscode from 'vscode';
 import path from 'path';
-import { extractImageInfo, generateAltText } from './imageUtils';
+import { extractImageInfo } from './imageUtils';
+import { generateAltText } from './vscodeImageUtils';
 import { ChatModel, initializeModelAndToken } from './extension';
 
 interface ImageCodeAction extends vscode.CodeAction {

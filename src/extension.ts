@@ -4,7 +4,8 @@ import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { extractImageInfo, generateAltText, getBufferAndMimeTypeFromUri } from './imageUtils';
+import { extractImageInfo } from './imageUtils';
+import { generateAltText, getBufferAndMimeTypeFromUri } from './vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
 
