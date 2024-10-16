@@ -143,24 +143,12 @@ export async function activate(context: vscode.ExtensionContext) {
 		for (const reference of chatVariables) {
 			// URI in cases of drag and drop or from file already in the workspace
 			if (reference.value instanceof vscode.Uri) {
-				const fileExtension = reference.value.path.split('.').pop()?.toLowerCase();
-				const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
-
-				function getMimeType(ext: string) {
-					if (ext === 'jpg') {
-						return 'image/jpeg';
-					}
-					return `image/${ext}`;
-				}
-
-				if (fileExtension && imageExtensions.includes(fileExtension)) {
-					base64Strings.push(Buffer.from(await vscode.workspace.fs.readFile(reference.value)));
-					mimeType = getMimeType(fileExtension)
-				} else {
+				const result = await getBufferAndMimeTypeFromUri(reference.value);
+				if (!result) {
 					stream.markdown(`The file is not an image.`);
 					return { metadata: { command: '' } };
 				}
-
+				base64Strings.push(result.buffer);
 				// ChatReferenceBinaryData in cases of copy and paste (or from quick pick)
 			} else if (reference.value instanceof vscode.ChatReferenceBinaryData) {
 				mimeType = reference.value.mimeType;
@@ -350,21 +338,11 @@ export class AltTextGenerator implements vscode.CodeActionProvider<ImageCodeActi
 
 async function generateAltText(model: ChatModel, apiKey: string, imagePath: string): Promise<string | undefined> {
 	const uri = vscode.Uri.file(imagePath);
-	const fileExtension = uri.path.split('.').pop()?.toLowerCase();
-	const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
-
-	function getMimeType(ext: string) {
-		if (ext === 'jpg') {
-			return 'image/jpeg';
-		}
-		return `image/${ext}`;
-	}
-
-	if (!fileExtension || !imageExtensions.includes(fileExtension)) {
+	const result = await getBufferAndMimeTypeFromUri(uri);
+	if (!result) {
 		return;
 	}
-	const buffer = Buffer.from(await vscode.workspace.fs.readFile(uri));
-	const mimeType = getMimeType(fileExtension)
+	const { buffer, mimeType } = result;
 
 	try {
 		const api = getApi(model.provider);
@@ -377,4 +355,24 @@ async function generateAltText(model: ChatModel, apiKey: string, imagePath: stri
 		}
 		return;
 	}
+}
+
+const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
+async function getBufferAndMimeTypeFromUri(uri: vscode.Uri): Promise<{ buffer: Buffer, mimeType: string } | undefined> {
+	const fileExtension = uri.path.split('.').pop()?.toLowerCase();
+	if (!fileExtension || !imageExtensions.includes(fileExtension)) {
+		return;
+	}
+
+	const buffer = Buffer.from(await vscode.workspace.fs.readFile(uri));
+	const mimeType = getMimeType(fileExtension)
+	return { buffer, mimeType };
+}
+
+
+function getMimeType(ext: string) {
+	if (ext === 'jpg') {
+		return 'image/jpeg';
+	}
+	return `image/${ext}`;
 }
