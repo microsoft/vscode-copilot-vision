@@ -92,7 +92,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
-		await initializeProviderAndModel(stream);
+		await initializeModelAndToken(stream);
 
 		if (!cachedModel || !cachedToken) {
 			throw new Error('Something went wrong in the auth flow.');
@@ -259,7 +259,7 @@ async function registerAuthProviders(context: vscode.ExtensionContext) {
 	));
 }
 
-async function initializeProviderAndModel(stream?: vscode.ChatResponseStream) {
+async function initializeModelAndToken(stream?: vscode.ChatResponseStream) {
 	// Default to Azure Open AI, only use a different model if one is selected explicitly
 	// through the model picker command
 	const config = vscode.workspace.getConfiguration();
@@ -334,7 +334,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			return;
 		}
 		if (!cachedToken || !cachedModel) {
-			await initializeProviderAndModel();
+			await initializeModelAndToken();
 		}
 		if (!cachedToken || !cachedModel) {
 			return;
