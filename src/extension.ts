@@ -367,7 +367,7 @@ async function generateAltText(model: ChatModel, apiKey: string, imagePath: stri
 	const mimeType = getMimeType(fileExtension)
 
 	try {
-		const api = getApi(model.type);
+		const api = getApi(model.provider);
 		const altText = (await api.create(apiKey, 'Generate alt text for this image. Be very concise. Do not include sighted person info like colors.', model, [buffer], mimeType)).join(' ');
 		return altText;
 	} catch (err: unknown) {
