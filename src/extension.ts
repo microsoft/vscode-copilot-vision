@@ -73,7 +73,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		const config = vscode.workspace.getConfiguration();
 		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
 		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
-		
+
 
 		// Handle the selected provider and input model
 		cachedModel = { provider: selectedModel.label, model: inputModel };
@@ -90,6 +90,33 @@ export async function activate(context: vscode.ExtensionContext) {
 			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
 		})
 	);
+
+	context.subscriptions.push(
+		vscode.languages.registerCodeLensProvider('markdown', new AltTextCodeLensProvider())
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('vision.generateAltText', async (args) => {
+			if (!cachedToken || !cachedModel) {
+				await initializeModelAndToken();
+			}
+			if (!cachedToken || !cachedModel) {
+				return;
+			}
+			const altText = await generateAltText(cachedModel, cachedToken, args.resolvedImagePath, args.isHtml, args.type);
+			if (!altText) {
+				return;
+			}
+			const edit = new vscode.WorkspaceEdit();
+			if (args.isHtml) {
+				// Replace the `img` from `img src` with `img alt="`
+				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + 3 + args.altTextLength), altText);
+			} else {
+				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextLength), altText);
+			}
+			await vscode.workspace.applyEdit(edit);
+		})
+	)
 
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
 		await initializeModelAndToken(stream);
@@ -240,7 +267,7 @@ async function registerAuthProviders(context: vscode.ExtensionContext) {
 	const openAISecretStorage = new ApiKeySecretStorage('openai.keys', context);
 	await openAISecretStorage.initialize();
 	const openAIAuthProvider = new OpenAIAuthProvider(openAISecretStorage);
-	
+
 	const anthropicSecretStorage = new ApiKeySecretStorage('anthropic.keys', context);
 	await anthropicSecretStorage.initialize();
 	const anthropicAuthProvider = new AnthropicAuthProvider(anthropicSecretStorage);
@@ -248,7 +275,7 @@ async function registerAuthProviders(context: vscode.ExtensionContext) {
 	const geminiSecretStorage = new ApiKeySecretStorage('bing.keys', context);
 	await geminiSecretStorage.initialize();
 	const geminiAuthProvider = new GeminiAuthProvider(geminiSecretStorage);
-	
+
 	context.subscriptions.push(vscode.Disposable.from(
 		openAIAuthProvider,
 		vscode.authentication.registerAuthenticationProvider(OpenAIAuthProvider.ID, OpenAIAuthProvider.NAME, new OpenAIAuthProvider(openAISecretStorage), { supportsMultipleAccounts: true }),
@@ -302,7 +329,7 @@ interface ImageCodeAction extends vscode.CodeAction {
 	resolvedImagePath: string;
 	currentLine: string;
 	altTextStartIndex: number;
-	isHtml?: boolean;
+	isHtml: boolean;
 }
 
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
@@ -339,7 +366,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		if (!cachedToken || !cachedModel) {
 			return;
 		}
-		const altText = await generateAltText(cachedModel, cachedToken, codeAction.resolvedImagePath, codeAction.isHtml);
+		const altText = await generateAltText(cachedModel, cachedToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise');
 		if (!altText) {
 			return;
 		}
@@ -356,18 +383,86 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 	}
 }
 
-async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml?: boolean): Promise<string | undefined> {
+export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
+	// a class that allows you to generate more verbose alt text or provide a custom query
+	onDidChangeCodeLenses?: vscode.Event<void> | undefined;
+	provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
+		// const currentLine = document.lineAt(range.start.line).text;
+		// get current line from document
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return [];
+		}
+		const currentLine = editor.document.lineAt(editor.selection.active.line).text;
+		const parsed = extractImageInfo(currentLine, true);
+
+		if (!parsed) {
+			return;
+		}
+
+		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
+		return [{
+			command: {
+				title: 'Make more verbose', command: 'vision.generateAltText', arguments: [{
+					resolvedImagePath,
+					currentLine,
+					altTextStartIndex: parsed.altTextStartIndex,
+					isHtml: parsed.isHTML,
+					document,
+					range: new vscode.Range(editor.selection.active, editor.selection.active),
+					isResolved: true,
+					type: 'verbose',
+					altTextLength: parsed.altTextLength
+				}]
+			},
+			range: new vscode.Range(editor.selection.active, editor.selection.active),
+			isResolved: false
+		}
+			, {
+			command: {
+				title: 'Refine...', command: 'vision.generateAltText', arguments: [{
+					resolvedImagePath,
+					currentLine,
+					altTextStartIndex: parsed.altTextStartIndex,
+					isHtml: parsed.isHTML,
+					document,
+					range: new vscode.Range(editor.selection.active, editor.selection.active),
+					isResolved: true,
+					type: 'query',
+					altTextLength: parsed.altTextLength
+				}]
+			},
+			range: new vscode.Range(editor.selection.active, editor.selection.active),
+			isResolved: false
+		}];
+	}
+}
+
+async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml: boolean, type: 'verbose' | 'concise' | 'query'): Promise<string | undefined> {
 	const uri = vscode.Uri.file(imagePath);
 	const result = await getBufferAndMimeTypeFromUri(uri);
 	if (!result) {
 		return;
 	}
 	const { buffer, mimeType } = result;
+	let query = (type === 'concise' ? 'Generate concise alt text for this image.' : 'Generate alt text for this image.') + 'Focus on essential elements and avoid unnecessary visual details like colors. Never include single or double quotes in the alt text.';
+	if (type === 'query') {
+		const userQuery = await vscode.window.showInputBox({
+			placeHolder: 'Enter additional details for the alt text generation',
+			prompt: 'Specify more information about the alt text you want for the image.'
+		});
+
+		if (!userQuery) {
+			return;
+		}
+
+		query = `${query} ${userQuery}`;
+	}
 	try {
 		const api = getApi(model.provider);
 		const altText = (await api.create(
 			apiKey,
-			'Generate concise alt text for this image. Focus on essential elements and avoid unnecessary visual details like colors. Never include single or double quotes in the alt text.',
+			query,
 			model,
 			[buffer],
 			mimeType)).join(' ');

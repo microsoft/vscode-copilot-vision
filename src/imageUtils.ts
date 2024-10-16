@@ -1,29 +1,51 @@
 
 // matches images in markdown, html, and markdown links when they do not have alt text
 const imageRegex = /!\[\s*\]\(([^)]+)\)|<img\s+[^>]*src="([^"]+)"[^>]*>|\[!\[\s*\]\(([^)]+)\)\]\(([^)]+)\)/;
-
-export function extractImageInfo(line: string): { imagePath: string, altTextStartIndex: number, isHTML?: boolean } | undefined {
-	const match = line.match(imageRegex);
+// matches images in markdown, html, and markdown links when they do have alt text
+export const imageRegexAltTextPresent = /!\[([^\]]*)\]\(([^)]+)\)|<img\s+[^>]*alt="([^"]*)"\s+[^>]*src="([^"]+)"[^>]*>|<img\s+[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*>|\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)/;
+export function extractImageInfo(line: string, refineResult?: boolean): { imagePath: string, altTextStartIndex: number, isHTML: boolean, altTextLength: number } | undefined {
+	const match = refineResult ? line.match(imageRegexAltTextPresent) : line.match(imageRegex);
 	if (!match || match.index === undefined) {
 		return;
 	}
-	let altTextStartIndex = 1;
-	let expectedIndex = 1;
+	let altTextStartIndex = refineResult ? 2 : 1;
+	let imagePathIndex = 1;
 	let isHTML = false;
+	let altTextMatchIndex = 1;
+
 	if (match[0].startsWith('<')) {
-		expectedIndex = 2;
+		imagePathIndex = 2;
 		altTextStartIndex = 1;
 		isHTML = true;
+		if (refineResult) {
+			const srcIndex = match[0].indexOf('src="');
+			const altIndex = match[0].indexOf('alt="');
+			if (srcIndex > altIndex) {
+				altTextMatchIndex = 3;
+				imagePathIndex = 4;
+			} else {
+				altTextMatchIndex = 6;
+				imagePathIndex = 5;
+			}
+		}
 	} else if (match[0].startsWith('[![]')) {
-		expectedIndex = 3;
+		imagePathIndex = 3;
 		altTextStartIndex = 3;
+		if (refineResult) {
+			altTextMatchIndex = 7;
+			imagePathIndex = 8;
+		}
 	}
-	const imagePath = match[expectedIndex];
+	const imagePath = match[imagePathIndex];
 	if (!imagePath) {
 		return;
 	}
 	if (!altTextStartIndex) {
 		return;
 	}
-	return { imagePath, altTextStartIndex, isHTML };
+	let altText = '';
+	if (refineResult && match.length > altTextMatchIndex) {
+		altText = match[altTextMatchIndex];
+	}
+	return { imagePath, altTextStartIndex, isHTML, altTextLength: altText.length };
 }

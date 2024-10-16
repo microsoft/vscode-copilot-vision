@@ -63,6 +63,12 @@
 				}
 			}
 		],
+		"codeLensProviders": [
+			{
+				"language": "markdown",
+				"provider": "AltTextCodeLensProvider"
+			}
+		],
 		"commands": [
 			{
 				"command": "copilot.vision.showHtmlPreview",
