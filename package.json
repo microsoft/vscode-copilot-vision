@@ -18,7 +18,9 @@
 		"AI",
 		"Chat"
 	],
-	"activationEvents": [],
+	"activationEvents": [
+		"onLanguage:markdown"
+	],
 	"contributes": {
 		"configuration": {
 			"properties": {
