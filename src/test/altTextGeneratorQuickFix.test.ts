@@ -1,16 +1,16 @@
 import assert from 'assert';
-import { suite, test } from 'mocha';
 import { extractImageInfo } from '../imageUtils';
+import { describe, it } from 'node:test';
 
-suite('imageRegex', () => {
-	test('should capture the image path in markdown image syntax', () => {
+describe('imageRegex', () => {
+	it('should capture the image path in markdown image syntax', () => {
 		const markdownImage = '![](path/to/image.png)';
 		const match = extractImageInfo(markdownImage);
 		assert(match);
 		assert.equal(match.imagePath, 'path/to/image.png');
 	});
 
-	test('should capture the image path in HTML image syntax', () => {
+	it('should capture the image path in HTML image syntax', () => {
 		const htmlImage = '<img src="path/to/image.png" />';
 		const match = extractImageInfo(htmlImage);
 		assert(match);
@@ -19,7 +19,7 @@ suite('imageRegex', () => {
 		assert.equal(match.isHTML, true);
 	});
 
-	test('should capture the image path in markdown link with image syntax', () => {
+	it('should capture the image path in markdown link with image syntax', () => {
 		const markdownLinkImage = '[![](path/to/image.png)](http://example.com)';
 		const match = extractImageInfo(markdownLinkImage);
 		assert(match);
@@ -27,13 +27,13 @@ suite('imageRegex', () => {
 		assert.equal(match.altTextStartIndex, 3);
 	});
 
-	test('should not match if there is alt text in markdown image syntax', () => {
+	it('should not match if there is alt text in markdown image syntax', () => {
 		const markdownImageWithAlt = '![alt text](path/to/image.png)';
 		const match = extractImageInfo(markdownImageWithAlt);
 		assert(!match);
 	});
 
-	test('should not match if there is alt text in markdown link with image syntax', () => {
+	it('should not match if there is alt text in markdown link with image syntax', () => {
 		const markdownLinkImageWithAlt = '[![alt text](path/to/image.png)](http://example.com)';
 		const match = extractImageInfo(markdownLinkImageWithAlt)
 		assert(!match);
