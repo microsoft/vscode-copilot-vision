@@ -112,28 +112,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(modelSelector);
 
-	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.generateAltText', async (imagePath) => {
-		const document = vscode.window.activeTextEditor?.document;
-		const currentLine = vscode.window.activeTextEditor?.selection.active.line;
-		if (!cachedModel || !cachedToken || !document || currentLine === undefined) {
-			return;
-		}
-
-		const text = document.lineAt(currentLine).text;
-		if (!imagePath) {
-			return;
-		}
-		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), imagePath);
-		const altText = await generateAltText(cachedModel, cachedToken, resolvedImagePath);
-		if (!altText) {
-			return;
-		}
-		const altTextStart = text.indexOf('[]') + 1;
-		const edit = new vscode.WorkspaceEdit();
-		edit.insert(document.uri, new vscode.Position(currentLine, altTextStart), altText);
-		await vscode.workspace.applyEdit(edit);
-	}));
-
 	const disposable = vscode.commands.registerCommand('copilot.vision.showHtmlPreview', () => {
 		const panel = vscode.window.createWebviewPanel(
 			'htmlPreview', // Identifies the type of the webview. Used internally
@@ -502,10 +480,17 @@ function getWebviewContent(htmlContent: string): string {
 export function deactivate() { }
 
 
-export class AltTextGenerator implements vscode.CodeActionProvider {
+interface ImageCodeAction extends vscode.CodeAction {
+	document: vscode.TextDocument;
+	range: vscode.Range;
+	resolvedImagePath: string;
+	currentLine: string;
+}
+
+export class AltTextGenerator implements vscode.CodeActionProvider<ImageCodeAction> {
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 
-	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<vscode.CodeAction[] | undefined> {
+	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
 		if (!cachedToken || !cachedModel) {
 			return;
 		}
@@ -521,10 +506,25 @@ export class AltTextGenerator implements vscode.CodeActionProvider {
 		if (!imagePath) {
 			return;
 		}
-		const fix = new vscode.CodeAction('Generate alt text', vscode.CodeActionKind.QuickFix);
-		fix.command = { 'command': 'copilot.vision.generateAltText', 'title': 'Generate alt text', arguments: [imagePath] };
 
-		return [fix];
+		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), imagePath);
+		return [{ title: 'Generate alt text', kind: vscode.CodeActionKind.QuickFix, range, document, resolvedImagePath, currentLine }] as ImageCodeAction[];
+	}
+
+	async resolveCodeAction(codeAction: ImageCodeAction, token: vscode.CancellationToken): Promise<ImageCodeAction | undefined> {
+		if (!cachedModel || !cachedToken || token.isCancellationRequested) {
+			return;
+		}
+		const altText = await generateAltText(cachedModel, cachedToken, codeAction.resolvedImagePath);
+		if (!altText) {
+			return;
+		}
+		codeAction.edit = new vscode.WorkspaceEdit();
+		const altTextStart = codeAction.currentLine.indexOf('[]') + 1;
+		const edit = new vscode.WorkspaceEdit();
+		edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, altTextStart), altText);
+		codeAction.edit = edit;
+		return codeAction;
 	}
 }
 
