@@ -49,6 +49,24 @@
 				"commands": []
 			}
 		],
+		"codeActions": [
+			{
+				"languages": [
+					"markdown"
+				],
+				"actions": {
+					"kind": "quickfix",
+					"title": "Generate alt text",
+					"description": "Generate alt text for image"
+				}
+			}
+		],
+		"codeLensProviders": [
+			{
+				"language": "markdown",
+				"provider": "AltTextCodeLensProvider"
+			}
+		],
 		"commands": [
 			{
 				"command": "copilot.vision.showHtmlPreview",

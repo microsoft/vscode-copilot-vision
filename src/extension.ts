@@ -1,20 +1,19 @@
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
-import { getApi } from './apiFacade';
+import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
+import { extractImageInfo, generateAltText, getBufferAndMimeTypeFromUri } from './imageUtils';
+import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
+import { getApi } from './apiFacade';
 
 dotenv.config();
 
 const VISION_PARTICIPANT_ID = 'chat-sample.vision';
 
 // OpenAI credentials
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-// Anthropic
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 let cachedToken: string | undefined;
 let cachedModel: ChatModel | undefined;
@@ -71,7 +70,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		const config = vscode.workspace.getConfiguration();
 		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
 		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
-		
+
 
 		// Handle the selected provider and input model
 		cachedModel = { provider: selectedModel.label, model: inputModel };
@@ -83,39 +82,45 @@ export async function activate(context: vscode.ExtensionContext) {
 		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
 	}));
 
+	context.subscriptions.push(
+		vscode.languages.registerCodeActionsProvider('markdown', new AltTextQuickFixProvider(), {
+			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.languages.registerCodeLensProvider('markdown', new AltTextCodeLensProvider())
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('vision.generateAltText', async (args) => {
+			if (!cachedToken || !cachedModel) {
+				await initializeModelAndToken();
+			}
+			if (!cachedToken || !cachedModel) {
+				return;
+			}
+			const altText = await generateAltText(cachedModel, cachedToken, args.resolvedImagePath, args.isHtml, args.type);
+			if (!altText) {
+				return;
+			}
+			const edit = new vscode.WorkspaceEdit();
+			if (args.isHtml) {
+				// Replace the `img` from `img src` with `img alt="`
+				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + 3 + args.altTextLength), altText);
+			} else {
+				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextLength), altText);
+			}
+			await vscode.workspace.applyEdit(edit);
+		})
+	)
+
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
-		// Default to Azure Open AI, only use a different model if one is selected explicitly
-		// through the model picker command
-		const config = vscode.workspace.getConfiguration();
-		const provider = config.get<ProviderType>('copilot.vision.provider');
-		const model = config.get<string>('copilot.vision.model')
+		await initializeModelAndToken(stream);
 
-		if (!cachedModel || (!provider && !model)) {
-			cachedModel = {
-				provider: ProviderType.OpenAI,
-				model: 'gpt-4o'
-			}
+		if (!cachedModel || !cachedToken) {
+			throw new Error('Something went wrong in the auth flow.');
 		}
-
-		if (provider && model) {
-			cachedModel = { provider, model };
-		}
-
-		if (cachedModel.provider === ProviderType.OpenAI && OPENAI_API_KEY) {
-			cachedToken = OPENAI_API_KEY
-		} else {
-			stream.progress(`Setting ${cachedModel.provider} API key...`);
-			const session = await vscode.authentication.getSession(cachedModel.provider, [], {
-				createIfNone: true,
-			});
-
-			if (!session) {
-				throw new Error('Please provide an API key to use this feature.');
-			}
-
-			cachedToken = session.accessToken;
-		}
-
 
 		stream.progress(`Generating response from ${cachedModel?.provider}...`);
 
@@ -136,24 +141,12 @@ export async function activate(context: vscode.ExtensionContext) {
 		for (const reference of chatVariables) {
 			// URI in cases of drag and drop or from file already in the workspace
 			if (reference.value instanceof vscode.Uri) {
-				const fileExtension = reference.value.path.split('.').pop()?.toLowerCase();
-				const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
-
-				function getMimeType(ext: string) {
-					if (ext === 'jpg') {
-						return 'image/jpeg';
-					}
-					return `image/${ext}`;
-				}
-
-				if (fileExtension && imageExtensions.includes(fileExtension)) {
-					base64Strings.push(Buffer.from(await vscode.workspace.fs.readFile(reference.value)));
-					mimeType = getMimeType(fileExtension)
-				} else {
+				const result = await getBufferAndMimeTypeFromUri(reference.value);
+				if (!result) {
 					stream.markdown(`The file is not an image.`);
 					return { metadata: { command: '' } };
 				}
-
+				base64Strings.push(result.buffer);
 				// ChatReferenceBinaryData in cases of copy and paste (or from quick pick)
 			} else if (reference.value instanceof vscode.ChatReferenceBinaryData) {
 				mimeType = reference.value.mimeType;
@@ -271,7 +264,7 @@ async function registerAuthProviders(context: vscode.ExtensionContext) {
 	const openAISecretStorage = new ApiKeySecretStorage('openai.keys', context);
 	await openAISecretStorage.initialize();
 	const openAIAuthProvider = new OpenAIAuthProvider(openAISecretStorage);
-	
+
 	const anthropicSecretStorage = new ApiKeySecretStorage('anthropic.keys', context);
 	await anthropicSecretStorage.initialize();
 	const anthropicAuthProvider = new AnthropicAuthProvider(anthropicSecretStorage);
@@ -279,7 +272,7 @@ async function registerAuthProviders(context: vscode.ExtensionContext) {
 	const geminiSecretStorage = new ApiKeySecretStorage('bing.keys', context);
 	await geminiSecretStorage.initialize();
 	const geminiAuthProvider = new GeminiAuthProvider(geminiSecretStorage);
-	
+
 	context.subscriptions.push(vscode.Disposable.from(
 		openAIAuthProvider,
 		vscode.authentication.registerAuthenticationProvider(OpenAIAuthProvider.ID, OpenAIAuthProvider.NAME, new OpenAIAuthProvider(openAISecretStorage), { supportsMultipleAccounts: true }),
@@ -290,4 +283,94 @@ async function registerAuthProviders(context: vscode.ExtensionContext) {
 	));
 }
 
+export async function initializeModelAndToken(stream?: vscode.ChatResponseStream): Promise<{ cachedToken: string | undefined, cachedModel: ChatModel | undefined }> {
+	// Default to Azure Open AI, only use a different model if one is selected explicitly
+	// through the model picker command
+	const config = vscode.workspace.getConfiguration();
+	const provider = config.get<ProviderType>('copilot.vision.provider');
+	const model = config.get<string>('copilot.vision.model')
+
+	if (!cachedModel || (!provider && !model)) {
+		cachedModel = {
+			provider: ProviderType.OpenAI,
+			model: 'gpt-4o'
+		}
+	}
+
+	if (provider && model) {
+		cachedModel = { provider, model };
+	}
+
+	if (cachedModel.provider === ProviderType.OpenAI && OPENAI_API_KEY) {
+		cachedToken = OPENAI_API_KEY
+	} else {
+		stream?.progress(`Setting ${cachedModel.provider} API key...`);
+		const session = await vscode.authentication.getSession(cachedModel.provider, [], {
+			createIfNone: true,
+		});
+
+		if (!session) {
+			throw new Error('Please provide an API key to use this feature.');
+		}
+
+		cachedToken = session.accessToken;
+	}
+	return { cachedToken, cachedModel };
+}
+
 export function deactivate() { }
+
+export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
+	// a class that allows you to generate more verbose alt text or provide a custom query
+	onDidChangeCodeLenses?: vscode.Event<void> | undefined;
+	provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return [];
+		}
+		const currentLine = editor.document.lineAt(editor.selection.active.line).text;
+		const parsed = extractImageInfo(currentLine, true);
+
+		if (!parsed) {
+			return;
+		}
+
+		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
+		return [{
+			command: {
+				title: 'Make more verbose', command: 'vision.generateAltText', arguments: [{
+					resolvedImagePath,
+					currentLine,
+					altTextStartIndex: parsed.altTextStartIndex,
+					isHtml: parsed.isHTML,
+					document,
+					range: new vscode.Range(editor.selection.active, editor.selection.active),
+					isResolved: true,
+					type: 'verbose',
+					altTextLength: parsed.altTextLength
+				}]
+			},
+			range: new vscode.Range(editor.selection.active, editor.selection.active),
+			isResolved: false
+		}
+			, {
+			command: {
+				title: 'Refine...', command: 'vision.generateAltText', arguments: [{
+					resolvedImagePath,
+					currentLine,
+					altTextStartIndex: parsed.altTextStartIndex,
+					isHtml: parsed.isHTML,
+					document,
+					range: new vscode.Range(editor.selection.active, editor.selection.active),
+					isResolved: true,
+					type: 'query',
+					altTextLength: parsed.altTextLength
+				}]
+			},
+			range: new vscode.Range(editor.selection.active, editor.selection.active),
+			isResolved: false
+		}];
+	}
+}
+
+
