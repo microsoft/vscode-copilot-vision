@@ -5,7 +5,7 @@ import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { parseLine } from './imageUtils';
+import { extractImageInfo } from './imageUtils';
 
 dotenv.config();
 
@@ -92,38 +92,11 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
-		// Default to Azure Open AI, only use a different model if one is selected explicitly
-		// through the model picker command
-		const config = vscode.workspace.getConfiguration();
-		const provider = config.get<ProviderType>('copilot.vision.provider');
-		const model = config.get<string>('copilot.vision.model')
+		await waitForAuth(stream);
 
-		if (!cachedModel || (!provider && !model)) {
-			cachedModel = {
-				provider: ProviderType.OpenAI,
-				model: 'gpt-4o'
-			}
+		if (!cachedModel || !cachedToken) {
+			throw new Error('Something went wrong in the auth flow.');
 		}
-
-		if (provider && model) {
-			cachedModel = { provider, model };
-		}
-
-		if (cachedModel.provider === ProviderType.OpenAI && OPENAI_API_KEY) {
-			cachedToken = OPENAI_API_KEY
-		} else {
-			stream.progress(`Setting ${cachedModel.provider} API key...`);
-			const session = await vscode.authentication.getSession(cachedModel.provider, [], {
-				createIfNone: true,
-			});
-
-			if (!session) {
-				throw new Error('Please provide an API key to use this feature.');
-			}
-
-			cachedToken = session.accessToken;
-		}
-
 
 		stream.progress(`Generating response from ${cachedModel?.provider}...`);
 
@@ -286,6 +259,40 @@ async function registerAuthProviders(context: vscode.ExtensionContext) {
 	));
 }
 
+async function waitForAuth(stream?: vscode.ChatResponseStream) {
+	// Default to Azure Open AI, only use a different model if one is selected explicitly
+	// through the model picker command
+	const config = vscode.workspace.getConfiguration();
+	const provider = config.get<ProviderType>('copilot.vision.provider');
+	const model = config.get<string>('copilot.vision.model')
+
+	if (!cachedModel || (!provider && !model)) {
+		cachedModel = {
+			provider: ProviderType.OpenAI,
+			model: 'gpt-4o'
+		}
+	}
+
+	if (provider && model) {
+		cachedModel = { provider, model };
+	}
+
+	if (cachedModel.provider === ProviderType.OpenAI && OPENAI_API_KEY) {
+		cachedToken = OPENAI_API_KEY
+	} else {
+		stream?.progress(`Setting ${cachedModel.provider} API key...`);
+		const session = await vscode.authentication.getSession(cachedModel.provider, [], {
+			createIfNone: true,
+		});
+
+		if (!session) {
+			throw new Error('Please provide an API key to use this feature.');
+		}
+
+		cachedToken = session.accessToken;
+	}
+}
+
 export function deactivate() { }
 
 
@@ -303,11 +310,11 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 
 	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
 		if (!cachedToken || !cachedModel) {
-			return;
+			await waitForAuth();
 		}
 
 		const currentLine = document.lineAt(range.start.line).text;
-		const parsed = parseLine(currentLine);
+		const parsed = extractImageInfo(currentLine);
 
 		if (!parsed) {
 			return;
