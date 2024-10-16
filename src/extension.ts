@@ -5,7 +5,7 @@ import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { parseLine as parseLine } from './imageUtils';
+import { parseLine } from './imageUtils';
 
 dotenv.config();
 
