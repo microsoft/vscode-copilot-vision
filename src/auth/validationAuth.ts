@@ -20,27 +20,48 @@ import { ApiKeyDetails, ApiKeySecretStorage } from './secretStorage';
 import { getApi } from '../apiFacade';
 import { ProviderType } from '../extension';
 
-export abstract class BaseAuth {
+export class BaseAuth {
 	private readonly _disposable: Disposable;
 	// private readonly _didChangeSessions = new EventEmitter<AuthenticationProviderAuthenticationSessionsChangeEvent>();
 	// onDidChangeSessions = this._didChangeSessions.event;
-
-	protected abstract readonly name: string;
+	// protected abstract readonly name: string;
 
 	constructor() {
 		this._disposable = Disposable.from();
 	}
 
-	protected abstract validateKey(key: string): Promise<boolean>;
+	async validateKey(key: string, providerType: ProviderType): Promise<boolean> {
+		try {
+			const api = getApi(providerType);
+			const config = workspace.getConfiguration();
+			const model: string | undefined = config.get('copilot.vision.model');
+			if (!model) {
+				throw new Error('Invalid Model');
+			}
 
-	async setAPIKey(context: ExtensionContext): Promise<void> {
+			const ChatModel = {
+				provider: providerType,
+				model
+			};
+
+			const result = await api.create(key, 'test', ChatModel, [], 'image/png');
+			if (!result) {
+				throw new Error('Invalid API key');
+			}
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	async setAPIKey(context: ExtensionContext, name: string): Promise<void> {
 		const input = window.createInputBox();
 		input.totalSteps = 2;
-		input.title = l10n.t('{0} Login', this.name);
+		input.title = l10n.t('{0} Login', name);
 
 		// Get API Key
 		input.step = 1;
-		const placeholderText = l10n.t('Enter your {0} API key', this.name);
+		const placeholderText = l10n.t('Enter your {0} API key', name);
 		input.placeholder = placeholderText;
 		input.ignoreFocusOut = true;
 		input.onDidChangeValue((value) => {
@@ -51,7 +72,7 @@ export abstract class BaseAuth {
 			const disposable = input.onDidAccept(async () => {
 				input.busy = true;
 				input.enabled = false;
-				if (!input.value || !(await this.validateKey(input.value))) {
+				if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
 					input.validationMessage = l10n.t('Invalid API key');
 					input.busy = false;
 					input.enabled = true;
@@ -62,7 +83,7 @@ export abstract class BaseAuth {
 			});
 
 			const hideDisposable = input.onDidHide(async () => {
-				if (!input.value || !(await this.validateKey(input.value))) {
+				if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
 					disposable.dispose();
 					hideDisposable.dispose();
 					reject(new Error('Invalid API key'));
@@ -70,7 +91,7 @@ export abstract class BaseAuth {
 			});
 		});
 
-		context.secrets.store(this.name, key);
+		context.secrets.store(name, key);
 	}
 
 	async deleteKey(sessionId: string): Promise<void> {
@@ -87,54 +108,52 @@ export abstract class BaseAuth {
 	}
 }
 
-abstract class ApiAuthValidator extends BaseAuth {
-	protected abstract readonly modelType: ProviderType;
+// export class ApiAuthValidator extends BaseAuth {
+// 	protected async validateKey(key: string): Promise<boolean> {
+// 		try {
+// 			const api = getApi(modelType);
+// 			const config = workspace.getConfiguration();
+// 			const model: string | undefined = config.get('copilot.vision.model');
+// 			if (!model) {
+// 				throw new Error('Invalid Model');
+// 			}
 
-	protected async validateKey(key: string): Promise<boolean> {
-		try {
-			const api = getApi(this.modelType);
-			const config = workspace.getConfiguration();
-			const model: string | undefined = config.get('copilot.vision.model');
-			if (!model) {
-				throw new Error('Invalid Model');
-			}
+// 			const ChatModel = {
+// 				provider: modelType,
+// 				model
+// 			};
 
-			const ChatModel = {
-				provider: this.modelType,
-				model
-			};
+// 			const result = await api.create(key, 'test', ChatModel, [], 'image/png');
+// 			if (!result) {
+// 				throw new Error('Invalid API key');
+// 			}
+// 			return true;
+// 		} catch (e) {
+// 			return false;
+// 		}
+// 	}
+// }
 
-			const result = await api.create(key, 'test', ChatModel, [], 'image/png');
-			if (!result) {
-				throw new Error('Invalid API key');
-			}
-			return true;
-		} catch (e) {
-			return false;
-		}
-	}
-}
+// export class OpenAIAuth extends ApiAuthValidator {
+// 	static readonly ID = 'OpenAI';
+// 	static readonly NAME = 'OpenAI GPT';
 
-export class OpenAIAuth extends ApiAuthValidator {
-	static readonly ID = 'OpenAI';
-	static readonly NAME = 'OpenAI GPT';
+// 	protected readonly name = OpenAIAuth.ID;
+// 	protected readonly modelType = ProviderType.OpenAI;
+// }
 
-	protected readonly name = OpenAIAuth.ID;
-	protected readonly modelType = ProviderType.OpenAI;
-}
+// export class AnthropicAuth extends ApiAuthValidator {
+// 	static readonly ID = 'Anthropic';
+// 	static readonly NAME = 'Anthropic Claude';
 
-export class AnthropicAuth extends ApiAuthValidator {
-	static readonly ID = 'Anthropic';
-	static readonly NAME = 'Anthropic Claude';
+// 	protected readonly name = AnthropicAuth.NAME;
+// 	protected readonly modelType = ProviderType.Anthropic;
+// }
 
-	protected readonly name = AnthropicAuth.NAME;
-	protected readonly modelType = ProviderType.Anthropic;
-}
+// export class GeminiAuth extends ApiAuthValidator {
+// 	static readonly ID = 'Gemini';
+// 	static readonly NAME = 'Google Gemini';
 
-export class GeminiAuth extends ApiAuthValidator {
-	static readonly ID = 'Gemini';
-	static readonly NAME = 'Google Gemini';
-
-	protected readonly name = GeminiAuth.NAME;
-	protected readonly modelType = ProviderType.Gemini;
-}
+// 	protected readonly name = GeminiAuth.NAME;
+// 	protected readonly modelType = ProviderType.Gemini;
+// }
