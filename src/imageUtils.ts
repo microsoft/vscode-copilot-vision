@@ -1,4 +1,4 @@
-export function extractImageAttributes(line: string, refineExisting?: boolean): { imagePath: string, altTextStartIndex: number, isHTML: boolean, altTextLength: number, altAfterSrc: boolean } | undefined {
+export function extractImageAttributes(line: string, refineExisting?: boolean): { imagePath: string, altTextStartIndex: number, isHTML: boolean, altTextLength: number } | undefined {
 	// Regex to match markdown image syntax ![alt text](image_path)
 	const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/;
 	// Updated regex to match HTML image syntax with alt and src in any order
@@ -10,7 +10,6 @@ export function extractImageAttributes(line: string, refineExisting?: boolean): 
 	let altTextStartIndex = -1;
 	let altTextLength = 0;
 	let isHTML = false;
-	let altAfterSrc = false;
 
 	// Check if it's a markdown image
 	if ((match = markdownImageRegex.exec(line)) !== null) {
@@ -30,7 +29,7 @@ export function extractImageAttributes(line: string, refineExisting?: boolean): 
 			return undefined;
 		}
 
-		return { imagePath, altTextStartIndex, isHTML, altTextLength, altAfterSrc };
+		return { imagePath, altTextStartIndex, isHTML, altTextLength };
 	}
 
 	// Check if it's an HTML image
@@ -57,17 +56,16 @@ export function extractImageAttributes(line: string, refineExisting?: boolean): 
 			// Alt text exists, find the actual start index of alt attribute
 			if (match[1]) {
 				// If alt comes before src, the altTextStartIndex is immediately after <img
-				altTextStartIndex = match.index + 1; // Right after <img
+				altTextStartIndex = match.index + 10; // Right after <img alt="
 			} else if (match[3]) {
 				// If alt comes after src, calculate its position
 				altTextStartIndex = match.index + match[0].indexOf(`alt="${altText}"`) + 5;
-				altAfterSrc = true;
 			}
 		}
 
 		altTextLength = altText.length;
 
-		return { imagePath, altTextStartIndex, isHTML, altTextLength, altAfterSrc };
+		return { imagePath, altTextStartIndex, isHTML, altTextLength };
 	}
 
 	// If no match is found, return undefined

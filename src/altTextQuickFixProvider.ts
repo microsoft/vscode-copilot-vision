@@ -12,7 +12,6 @@ interface ImageCodeAction extends vscode.CodeAction {
 	currentLine: string;
 	altTextStartIndex: number;
 	isHtml: boolean;
-	altAfterSrc: boolean;
 }
 
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
@@ -36,8 +35,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			resolvedImagePath,
 			altTextStartIndex: parsed.altTextStartIndex,
 			isHtml: parsed.isHTML,
-			currentLine,
-			altAfterSrc: parsed.altAfterSrc,
+			currentLine
 		}];
 	}
 
@@ -53,7 +51,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		if (!this._cachedModel || !this._cachedToken) {
 			return;
 		}
-		const altText = await generateAltText(this._cachedModel, this._cachedToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', codeAction.altAfterSrc, false);
+		const altText = await generateAltText(this._cachedModel, this._cachedToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', false);
 		if (!altText) {
 			return;
 		}
