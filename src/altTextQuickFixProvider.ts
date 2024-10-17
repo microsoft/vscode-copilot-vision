@@ -12,6 +12,7 @@ interface ImageCodeAction extends vscode.CodeAction {
 	currentLine: string;
 	altTextStartIndex: number;
 	isHtml: boolean;
+	altAfterSrc: boolean;
 }
 
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
@@ -35,7 +36,8 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			resolvedImagePath,
 			altTextStartIndex: parsed.altTextStartIndex,
 			isHtml: parsed.isHTML,
-			currentLine
+			currentLine,
+			altAfterSrc: parsed.altAfterSrc,
 		}];
 	}
 
@@ -51,14 +53,13 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		if (!this._cachedModel || !this._cachedToken) {
 			return;
 		}
-		const altText = await generateAltText(this._cachedModel, this._cachedToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise');
+		const altText = await generateAltText(this._cachedModel, this._cachedToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', codeAction.altAfterSrc, false);
 		if (!altText) {
 			return;
 		}
 		codeAction.edit = new vscode.WorkspaceEdit();
 		const edit = new vscode.WorkspaceEdit();
 		if (codeAction.isHtml) {
-			// Replace the `img` from `img src` with `img alt="`
 			edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + 3), altText);
 		} else {
 			edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);

@@ -101,16 +101,21 @@ export async function activate(context: vscode.ExtensionContext) {
 			if (!cachedToken || !cachedModel) {
 				return;
 			}
-			const altText = await generateAltText(cachedModel, cachedToken, args.resolvedImagePath, args.isHtml, args.type);
+			const altText = await generateAltText(cachedModel, cachedToken, args.resolvedImagePath, args.isHtml, args.type, args.altAfterSrc, true);
 			if (!altText) {
 				return;
 			}
 			const edit = new vscode.WorkspaceEdit();
 			if (args.isHtml) {
-				// Replace the `img` from `img src` with `img alt="`
-				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + 3 + args.altTextLength), altText);
+				if (args.altAfterSrc) {
+					// alt="text"
+					edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex + 8, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
+				} else {
+					// <img alt="text"
+					edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex + 9, args.range.start.line, args.altTextStartIndex + args.altTextLength + 9), altText);
+				}
 			} else {
-				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextLength), altText);
+				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
 			}
 			await vscode.workspace.applyEdit(edit);
 		})
@@ -348,7 +353,8 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 					range: new vscode.Range(editor.selection.active, editor.selection.active),
 					isResolved: true,
 					type: 'verbose',
-					altTextLength: parsed.altTextLength
+					altTextLength: parsed.altTextLength,
+					altAfterSrc: parsed.altAfterSrc
 				}]
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),
@@ -365,7 +371,8 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 					range: new vscode.Range(editor.selection.active, editor.selection.active),
 					isResolved: true,
 					type: 'query',
-					altTextLength: parsed.altTextLength
+					altTextLength: parsed.altTextLength,
+					altAfterSrc: parsed.altAfterSrc
 				}]
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),

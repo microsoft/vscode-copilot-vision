@@ -23,7 +23,7 @@ function getMimeType(ext: string) {
 }
 
 
-export async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml: boolean, type: 'verbose' | 'concise' | 'query'): Promise<string | undefined> {
+export async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml: boolean, type: 'verbose' | 'concise' | 'query', altAfterSrc: boolean, refineResult: boolean): Promise<string | undefined> {
 	const uri = vscode.Uri.file(imagePath);
 	const result = await getBufferAndMimeTypeFromUri(uri);
 	if (!result) {
@@ -52,9 +52,10 @@ export async function generateAltText(model: ChatModel, apiKey: string, imagePat
 			[buffer],
 			mimeType)).join(' ');
 
-		if (isHtml) {
+		if (!refineResult && isHtml) {
 			return `img alt="${altText}"`;
 		}
+
 		return altText;
 	} catch (err: unknown) {
 		return;
