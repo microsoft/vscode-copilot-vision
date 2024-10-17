@@ -100,7 +100,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	}));
 	context.subscriptions.push(...registerHtmlPreviewCommands());
 
-	context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
 		const query = '@vision troubleshoot my VS Code setup, as pictured.';
 		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
 	}));
@@ -200,7 +200,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	};
 
 	const vision = vscode.chat.createChatParticipant(VISION_PARTICIPANT_ID, handler);
-	vision.iconPath = vscode.Uri.joinPath(context.extensionUri, 'vscode-logo.png');
+	vision.iconPath = vscode.Uri.joinPath(context.extensionUri, 'assets/vision-eye-logo.png');
 
 	const logger = vscode.env.createTelemetryLogger({
 		sendEventData(eventName, data) {
