@@ -344,7 +344,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
 		return [{
 			command: {
-				title: 'Make more verbose', command: 'vision.generateAltText', arguments: [{
+				title: 'Increase alt text verbosity', command: 'vision.generateAltText', arguments: [{
 					resolvedImagePath,
 					currentLine,
 					altTextStartIndex: parsed.altTextStartIndex,
@@ -362,7 +362,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		}
 			, {
 			command: {
-				title: 'Refine...', command: 'vision.generateAltText', arguments: [{
+					title: 'Refine alt text...', command: 'vision.generateAltText', arguments: [{
 					resolvedImagePath,
 					currentLine,
 					altTextStartIndex: parsed.altTextStartIndex,
