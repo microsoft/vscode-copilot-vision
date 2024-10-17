@@ -95,8 +95,8 @@
 				"title": "Copilot Vision: Set a provider and model."
 			},
 			{
-				"command": "troubleshootWithVision",
-				"title": "Troubleshoot with Vision"
+				"command": "copilot.vision.troubleshoot",
+				"title": "Copilot Vision: Troubleshoot"
 			}
 		]
 	},

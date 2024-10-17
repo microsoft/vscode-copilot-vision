@@ -78,7 +78,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	}));
 	context.subscriptions.push(...registerHtmlPreviewCommands());
 
-	context.subscriptions.push(vscode.commands.registerCommand('troubleshootWithVision', async () => {
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
 		const query = '@vision troubleshoot my VS Code setup, as pictured.';
 		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
 	}));
