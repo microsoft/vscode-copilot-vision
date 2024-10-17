@@ -52,10 +52,6 @@ export async function generateAltText(model: ChatModel, apiKey: string, imagePat
 			[buffer],
 			mimeType)).join(' ');
 
-		if (!refineResult && isHtml) {
-			return `img alt="${altText}"`;
-		}
-
 		return altText;
 	} catch (err: unknown) {
 		return;
