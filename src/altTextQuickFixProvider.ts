@@ -29,7 +29,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 
 		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
 		return [{
-			title: 'Generate alt text',
+			title: 'Generate Alt Text',
 			kind: vscode.CodeActionKind.QuickFix,
 			range,
 			document,
