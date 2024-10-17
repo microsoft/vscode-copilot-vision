@@ -1,50 +1,73 @@
-// matches images in markdown, html, and markdown links when they do not have alt text
-const imageRegex = /!\[\s*\]\(([^)]+)\)|<img\s+[^>]*src="([^"]+)"[^>]*>|\[!\[\s*\]\(([^)]+)\)\]\(([^)]+)\)/;
-// matches images in markdown, html, and markdown links when they do have alt text
-export const imageRegexAltTextPresent = /!\[([^\]]*)\]\(([^)]+)\)|<img\s+[^>]*alt="([^"]*)"\s+[^>]*src="([^"]+)"[^>]*>|<img\s+[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*>|\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)/;
-export function extractImageInfo(line: string, refineResult?: boolean): { imagePath: string, altTextStartIndex: number, isHTML: boolean, altTextLength: number } | undefined {
-	const match = refineResult ? line.match(imageRegexAltTextPresent) : line.match(imageRegex);
-	if (!match || match.index === undefined) {
-		return;
-	}
-	let altTextStartIndex = refineResult ? 2 : 1;
-	let imagePathIndex = 1;
-	let isHTML = false;
-	let altTextMatchIndex = 1;
+export function extractImageAttributes(line: string, refineExisting?: boolean): { imagePath: string, altTextStartIndex: number, isHTML: boolean, altTextLength: number } | undefined {
+	// Regex to match markdown image syntax ![alt text](image_path)
+	const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/;
+	// Updated regex to match HTML image syntax with alt and src in any order
+	const htmlImageRegex = /<img\s+(?:alt=["']([^"']*)["']\s*)?src=["']([^"']+)["'](?:\s*alt=["']([^"']*)["'])?/;
 
-	if (match[0].startsWith('<')) {
-		imagePathIndex = 2;
-		altTextStartIndex = 1;
+	let match;
+	let imagePath = '';
+	let altText = '';
+	let altTextStartIndex = -1;
+	let altTextLength = 0;
+	let isHTML = false;
+
+	// Check if it's a markdown image
+	if ((match = markdownImageRegex.exec(line)) !== null) {
+		imagePath = match[2];
+		altText = match[1];
+		altTextStartIndex = match.index + 2; // start after `![`
+		altTextLength = altText.length;
+		isHTML = false;
+
+		// If refineExisting is true, ensure altText already exists
+		if (refineExisting && !altText) {
+			return undefined;
+		}
+
+		// If refineExisting is false, ensure altText does not exist
+		if (!refineExisting && altText) {
+			return undefined;
+		}
+
+		return { imagePath, altTextStartIndex, isHTML, altTextLength };
+	}
+
+	// Check if it's an HTML image
+	if ((match = htmlImageRegex.exec(line)) !== null) {
+		imagePath = match[2]; // The src attribute is always the second group
+		altText = match[1] || match[3] || ''; // alt text can be in either the first or third group, depending on order
 		isHTML = true;
-		if (refineResult) {
-			const srcIndex = match[0].indexOf('src="');
-			const altIndex = match[0].indexOf('alt="');
-			if (srcIndex > altIndex) {
-				altTextMatchIndex = 3;
-				imagePathIndex = 4;
-			} else {
-				altTextMatchIndex = 6;
-				imagePathIndex = 5;
+
+		// If refineExisting is true, ensure altText already exists
+		if (refineExisting && !altText) {
+			return undefined;
+		}
+
+		// If refineExisting is false, ensure altText does not exist
+		if (!refineExisting && altText) {
+			return undefined; // Return undefined if alt text is already present when refineExisting is false
+		}
+
+		// Calculate where the altTextStartIndex should be if the alt is missing
+		if (!altText) {
+			// If alt text is missing, the alt should be inserted right after the opening <img tag
+			altTextStartIndex = match.index + 1; // Start right after the opening `<img`
+		} else {
+			// Alt text exists, find the actual start index of alt attribute
+			if (match[1]) {
+				// If alt comes before src, the altTextStartIndex is immediately after <img
+				altTextStartIndex = match.index + 1; // Right after <img
+			} else if (match[3]) {
+				// If alt comes after src, calculate its position
+				altTextStartIndex = match.index + match[0].indexOf(`alt="${altText}"`) + 5;
 			}
 		}
-	} else if (match[0].startsWith('[![]')) {
-		imagePathIndex = 3;
-		altTextStartIndex = 3;
-		if (refineResult) {
-			altTextMatchIndex = 7;
-			imagePathIndex = 8;
-		}
+
+		altTextLength = altText.length;
+
+		return { imagePath, altTextStartIndex, isHTML, altTextLength };
 	}
-	const imagePath = match[imagePathIndex];
-	if (!imagePath) {
-		return;
-	}
-	if (!altTextStartIndex) {
-		return;
-	}
-	let altText = '';
-	if (refineResult && match.length > altTextMatchIndex) {
-		altText = match[altTextMatchIndex];
-	}
-	return { imagePath, altTextStartIndex, isHTML, altTextLength: altText.length };
+
+	// If no match is found, return undefined
+	return undefined;
 }

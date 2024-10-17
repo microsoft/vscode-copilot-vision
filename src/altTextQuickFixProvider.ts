@@ -1,7 +1,7 @@
 
 import * as vscode from 'vscode';
 import path from 'path';
-import { extractImageInfo } from './imageUtils';
+import { extractImageAttributes } from './imageUtils';
 import { generateAltText } from './vscodeImageUtils';
 import { ChatModel, initializeModelAndToken } from './extension';
 
@@ -20,7 +20,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 	private _cachedModel: ChatModel | undefined;
 	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
 		const currentLine = document.lineAt(range.start.line).text;
-		const parsed = extractImageInfo(currentLine);
+		const parsed = extractImageAttributes(currentLine);
 
 		if (!parsed) {
 			return;

@@ -4,7 +4,7 @@ import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { extractImageInfo } from './imageUtils';
+import { extractImageAttributes } from './imageUtils';
 import { generateAltText, getBufferAndMimeTypeFromUri } from './vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
@@ -330,7 +330,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 			return [];
 		}
 		const currentLine = editor.document.lineAt(editor.selection.active.line).text;
-		const parsed = extractImageInfo(currentLine, true);
+		const parsed = extractImageAttributes(currentLine, true);
 
 		if (!parsed) {
 			return;
