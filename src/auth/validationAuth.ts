@@ -14,9 +14,6 @@ import { ProviderType } from '../extension';
 
 export class BaseAuth {
 	private readonly _disposable: Disposable;
-	// private readonly _didChangeSessions = new EventEmitter<AuthenticationProviderAuthenticationSessionsChangeEvent>();
-	// onDidChangeSessions = this._didChangeSessions.event;
-	// protected abstract readonly name: string;
 
 	constructor() {
 		this._disposable = new Disposable(() => {});
@@ -78,7 +75,7 @@ export class BaseAuth {
 				if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
 					disposable.dispose();
 					hideDisposable.dispose();
-					reject(new Error('Cancelled on exit'));
+					reject(new Error('API key was not set.'));
 				}
 			});
 		});
