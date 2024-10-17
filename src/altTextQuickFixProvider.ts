@@ -46,9 +46,9 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			return;
 		}
 		if (!this._cachedToken || !this._cachedModel) {
-			const { cachedToken, cachedModel } = await initializeModelAndToken();
-			this._cachedToken = cachedToken;
-			this._cachedModel = cachedModel;
+			const { currentToken, currentModel } = await initializeModelAndToken();
+			this._cachedToken = currentToken;
+			this._cachedModel = currentModel;
 		}
 		if (!this._cachedModel || !this._cachedToken) {
 			return;
