@@ -94,7 +94,7 @@
 			},
 			{
 				"command": "copilot.vision.selectProviderAndModel",
-				"title": "Copilot Vision: Set a provider and model."
+				"title": "Copilot Vision: Set a Provider and Model."
 			},
 			{
 				"command": "copilot.vision.troubleshoot",

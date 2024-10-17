@@ -102,7 +102,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(
-		vscode.languages.registerCodeActionsProvider('markdown', new AltTextQuickFixProvider(), {
+		vscode.languages.registerCodeActionsProvider('markdown', new AltTextQuickFixProvider(context), {
 			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
 		})
 	);
