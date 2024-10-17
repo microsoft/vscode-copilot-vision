@@ -149,8 +149,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			if (reference.value instanceof vscode.Uri) {
 				const result = await getBufferAndMimeTypeFromUri(reference.value);
 				if (!result) {
-					stream.markdown(`The file is not an image.`);
-					return { metadata: { command: '' } };
+					continue;
 				}
 				base64Strings.push(result.buffer);
 				// ChatReferenceBinaryData in cases of copy and paste (or from quick pick)
