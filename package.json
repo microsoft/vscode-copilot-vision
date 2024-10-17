@@ -36,7 +36,9 @@
 		"pilot",
 		"co-pilot"
 	],
-	"activationEvents": [],
+	"activationEvents": [
+		"onLanguage:markdown"
+	],
 	"contributes": {
 		"configuration": {
 			"properties": {

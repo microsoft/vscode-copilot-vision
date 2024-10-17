@@ -4,7 +4,7 @@ import path from 'path';
 import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
 import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { extractImageInfo } from './imageUtils';
+import { extractImageAttributes } from './imageUtils';
 import { generateAltText, getBufferAndMimeTypeFromUri } from './vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
@@ -123,16 +123,21 @@ export async function activate(context: vscode.ExtensionContext) {
 			if (!cachedToken || !cachedModel) {
 				return;
 			}
-			const altText = await generateAltText(cachedModel, cachedToken, args.resolvedImagePath, args.isHtml, args.type);
+			const altText = await generateAltText(cachedModel, cachedToken, args.resolvedImagePath, args.isHtml, args.type, args.altAfterSrc, true);
 			if (!altText) {
 				return;
 			}
 			const edit = new vscode.WorkspaceEdit();
 			if (args.isHtml) {
-				// Replace the `img` from `img src` with `img alt="`
-				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + 3 + args.altTextLength), altText);
+				if (args.altAfterSrc) {
+					// alt="text"
+					edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex + 8, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
+				} else {
+					// <img alt="text"
+					edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex + 9, args.range.start.line, args.altTextStartIndex + args.altTextLength + 9), altText);
+				}
 			} else {
-				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextLength), altText);
+				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
 			}
 			await vscode.workspace.applyEdit(edit);
 		})
@@ -342,14 +347,13 @@ export function deactivate() { }
 
 export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 	// a class that allows you to generate more verbose alt text or provide a custom query
-	onDidChangeCodeLenses?: vscode.Event<void> | undefined;
 	provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
 			return [];
 		}
 		const currentLine = editor.document.lineAt(editor.selection.active.line).text;
-		const parsed = extractImageInfo(currentLine, true);
+		const parsed = extractImageAttributes(currentLine, true);
 
 		if (!parsed) {
 			return;
@@ -358,7 +362,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
 		return [{
 			command: {
-				title: 'Make more verbose', command: 'vision.generateAltText', arguments: [{
+				title: 'Increase alt text verbosity', command: 'vision.generateAltText', arguments: [{
 					resolvedImagePath,
 					currentLine,
 					altTextStartIndex: parsed.altTextStartIndex,
@@ -367,7 +371,8 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 					range: new vscode.Range(editor.selection.active, editor.selection.active),
 					isResolved: true,
 					type: 'verbose',
-					altTextLength: parsed.altTextLength
+					altTextLength: parsed.altTextLength,
+					altAfterSrc: parsed.altAfterSrc
 				}]
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),
@@ -375,7 +380,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		}
 			, {
 			command: {
-				title: 'Refine...', command: 'vision.generateAltText', arguments: [{
+					title: 'Refine alt text...', command: 'vision.generateAltText', arguments: [{
 					resolvedImagePath,
 					currentLine,
 					altTextStartIndex: parsed.altTextStartIndex,
@@ -384,7 +389,8 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 					range: new vscode.Range(editor.selection.active, editor.selection.active),
 					isResolved: true,
 					type: 'query',
-					altTextLength: parsed.altTextLength
+					altTextLength: parsed.altTextLength,
+					altAfterSrc: parsed.altAfterSrc
 				}]
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),
