@@ -39,7 +39,29 @@ interface IVisionChatResult extends vscode.ChatResult {
 
 export async function activate(context: vscode.ExtensionContext) {
 
-	await registerAuthProviders(context);
+	// if (OPENAI_API_KEY) {
+	// 	context.secrets.store('openai.keys', OPENAI_API_KEY);
+	// }
+
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.setApiKey', async () => {
+		await registerAuthProviders(context);
+		// const apiKey = await vscode.window.showInputBox({
+		// 	placeHolder: 'Enter your API key',
+		// 	prompt: 'Please enter your API key for the selected provider.',
+		// 	ignoreFocusOut: true,
+		// 	password: true
+		// });
+
+		// if (!apiKey) {
+		// 	vscode.window.showErrorMessage('API key is required to use this feature.');
+		// 	return;
+		// }
+
+		// const config = vscode.workspace.getConfiguration();
+		// await config.update('copilot.vision.apiKey', apiKey, vscode.ConfigurationTarget.Global);
+
+		// vscode.window.showInformationMessage('API key has been set successfully.');
+	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectProviderAndModel', async () => {
 		const providers = [
@@ -262,26 +284,30 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
 }
 
 async function registerAuthProviders(context: vscode.ExtensionContext) {
-	const openAISecretStorage = new ApiKeySecretStorage('openai.keys', context);
-	await openAISecretStorage.initialize();
-	const openAIAuthProvider = new OpenAIAuthProvider(openAISecretStorage);
 
-	const anthropicSecretStorage = new ApiKeySecretStorage('anthropic.keys', context);
-	await anthropicSecretStorage.initialize();
-	const anthropicAuthProvider = new AnthropicAuthProvider(anthropicSecretStorage);
+	
 
-	const geminiSecretStorage = new ApiKeySecretStorage('bing.keys', context);
-	await geminiSecretStorage.initialize();
-	const geminiAuthProvider = new GeminiAuthProvider(geminiSecretStorage);
 
-	context.subscriptions.push(vscode.Disposable.from(
-		openAIAuthProvider,
-		vscode.authentication.registerAuthenticationProvider(OpenAIAuthProvider.ID, OpenAIAuthProvider.NAME, new OpenAIAuthProvider(openAISecretStorage), { supportsMultipleAccounts: true }),
-		anthropicAuthProvider,
-		vscode.authentication.registerAuthenticationProvider(AnthropicAuthProvider.ID, AnthropicAuthProvider.NAME, new AnthropicAuthProvider(anthropicSecretStorage), { supportsMultipleAccounts: true }),
-		geminiAuthProvider,
-		vscode.authentication.registerAuthenticationProvider(GeminiAuthProvider.ID, GeminiAuthProvider.NAME, new GeminiAuthProvider(geminiSecretStorage), { supportsMultipleAccounts: true })
-	));
+	// const openAISecretStorage = new ApiKeySecretStorage('openai.keys', context);
+	// await openAISecretStorage.initialize();
+	// const openAIAuthProvider = new OpenAIAuthProvider(openAISecretStorage);
+
+	// const anthropicSecretStorage = new ApiKeySecretStorage('anthropic.keys', context);
+	// await anthropicSecretStorage.initialize();
+	// const anthropicAuthProvider = new AnthropicAuthProvider(anthropicSecretStorage);
+
+	// const geminiSecretStorage = new ApiKeySecretStorage('bing.keys', context);
+	// await geminiSecretStorage.initialize();
+	// const geminiAuthProvider = new GeminiAuthProvider(geminiSecretStorage);
+
+	// context.subscriptions.push(vscode.Disposable.from(
+	// 	openAIAuthProvider,
+	// 	vscode.authentication.registerAuthenticationProvider(OpenAIAuthProvider.ID, OpenAIAuthProvider.NAME, new OpenAIAuthProvider(openAISecretStorage), { supportsMultipleAccounts: true }),
+	// 	anthropicAuthProvider,
+	// 	vscode.authentication.registerAuthenticationProvider(AnthropicAuthProvider.ID, AnthropicAuthProvider.NAME, new AnthropicAuthProvider(anthropicSecretStorage), { supportsMultipleAccounts: true }),
+	// 	geminiAuthProvider,
+	// 	vscode.authentication.registerAuthenticationProvider(GeminiAuthProvider.ID, GeminiAuthProvider.NAME, new GeminiAuthProvider(geminiSecretStorage), { supportsMultipleAccounts: true })
+	// ));
 }
 
 export async function initializeModelAndToken(stream?: vscode.ChatResponseStream): Promise<{ cachedToken: string | undefined, cachedModel: ChatModel | undefined }> {
@@ -297,6 +323,7 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 			model: 'gpt-4o'
 		}
 	}
+	
 
 	if (provider && model) {
 		cachedModel = { provider, model };
@@ -306,15 +333,7 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 		cachedToken = OPENAI_API_KEY
 	} else {
 		stream?.progress(`Setting ${cachedModel.provider} API key...`);
-		const session = await vscode.authentication.getSession(cachedModel.provider, [], {
-			createIfNone: true,
-		});
-
-		if (!session) {
-			throw new Error('Please provide an API key to use this feature.');
-		}
-
-		cachedToken = session.accessToken;
+		await vscode.commands.executeCommand('copilot.vision.setApiKey');
 	}
 	return { cachedToken, cachedModel };
 }
