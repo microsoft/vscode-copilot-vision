@@ -1,11 +1,15 @@
 {
-	"name": "chat-sample",
-	"publisher": "justin-dev",
-	"displayName": "Copilot Chat Vision Sample",
-	"description": "Chat extension that utilizes the Copilot Chat API to provide vision capabilities.",
+	"name": "vscode-copilot-vision",
+	"publisher": "Microsoft",
+	"displayName": "VS Code Copilot Vision",
+	"description": "Chat extension providing vision capabilities to Copilot, with a focus on accessibility.",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/justschen/copilot-chat-vision-sample"
+		"url": "https://github.com/vscode/vscode-copilot-vision"
+	},
+	"icon": "assets/vision-eye-logo.png",
+	"bugs": {
+		"url": "https://github.com/microsoft/vscode-copilot-vision/issues"
 	},
 	"enabledApiProposals": [
 		"chatReferenceBinaryData"
@@ -16,7 +20,21 @@
 	},
 	"categories": [
 		"AI",
-		"Chat"
+		"Chat",
+		"Programming Languages",
+		"Machine Learning"
+	],
+	"keywords": [
+		"ai",
+		"openai",
+		"anthropic",
+		"gemini",
+		"claude",
+		"vision",
+		"accessibility",
+		"images",
+		"pilot",
+		"co-pilot"
 	],
 	"activationEvents": [],
 	"contributes": {
@@ -32,7 +50,7 @@
 					"default": "OpenAI",
 					"description": "The selected provider."
 				},
-				"copilot.vision.model": {
+			"copilot.vision.model": {
 					"type": "string",
 					"default": "gpt-4o",
 					"description": "The model for the selected provider."

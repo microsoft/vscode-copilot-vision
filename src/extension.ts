@@ -178,7 +178,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	};
 
 	const vision = vscode.chat.createChatParticipant(VISION_PARTICIPANT_ID, handler);
-	vision.iconPath = vscode.Uri.joinPath(context.extensionUri, 'vscode-logo.png');
+	vision.iconPath = vscode.Uri.joinPath(context.extensionUri, 'assets/vision-eye-logo.png');
 
 	const logger = vscode.env.createTelemetryLogger({
 		sendEventData(eventName, data) {
