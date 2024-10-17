@@ -106,7 +106,7 @@ describe('extractImageInfo', () => {
 				assert(match);
 				const { imagePath, altTextStartIndex, isHTML, altTextLength } = match;
 				assert.equal(imagePath, 'path/to/image.png');
-				assert.equal(altTextStartIndex, 1);
+				assert.equal(altTextStartIndex, 10);
 				assert.equal(isHTML, true);
 				assert.equal(altTextLength, 2);
 			});
