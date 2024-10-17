@@ -27,7 +27,7 @@ export class BaseAuth {
 	// protected abstract readonly name: string;
 
 	constructor() {
-		this._disposable = Disposable.from();
+		this._disposable = new Disposable(() => {});
 	}
 
 	async validateKey(key: string, providerType: ProviderType): Promise<boolean> {
@@ -56,17 +56,16 @@ export class BaseAuth {
 
 	async setAPIKey(context: ExtensionContext, name: string): Promise<void> {
 		const input = window.createInputBox();
-		input.totalSteps = 2;
 		input.title = l10n.t('{0} Login', name);
 
 		// Get API Key
-		input.step = 1;
 		const placeholderText = l10n.t('Enter your {0} API key', name);
 		input.placeholder = placeholderText;
 		input.ignoreFocusOut = true;
 		input.onDidChangeValue((value) => {
 			input.validationMessage = undefined;
 		});
+
 		input.show();
 		const key: string = await new Promise((resolve, reject) => {
 			const disposable = input.onDidAccept(async () => {
@@ -94,8 +93,8 @@ export class BaseAuth {
 		context.secrets.store(name, key);
 	}
 
-	async deleteKey(sessionId: string): Promise<void> {
-		// await this._secrets.delete(sessionId);
+	async deleteKey(context: ExtensionContext, id: string,): Promise<void> {
+		await context.secrets.delete(id);
 	}
 
 	async getKey(id: string, context: ExtensionContext): Promise<string | undefined> {

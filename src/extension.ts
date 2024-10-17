@@ -8,6 +8,7 @@ import { extractImageAttributes } from './imageUtils';
 import { generateAltText, getBufferAndMimeTypeFromUri } from './vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
+import { BaseAuth } from './auth/validationAuth';
 
 dotenv.config();
 
@@ -39,29 +40,24 @@ interface IVisionChatResult extends vscode.ChatResult {
 
 export async function activate(context: vscode.ExtensionContext) {
 
-	// if (OPENAI_API_KEY) {
-	// 	context.secrets.store('openai.keys', OPENAI_API_KEY);
-	// }
-
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.setApiKey', async () => {
-		await registerAuthProviders(context);
-		// const apiKey = await vscode.window.showInputBox({
-		// 	placeHolder: 'Enter your API key',
-		// 	prompt: 'Please enter your API key for the selected provider.',
-		// 	ignoreFocusOut: true,
-		// 	password: true
-		// });
+		const test = new BaseAuth();
+		if (cachedModel) {
+			// Delete current key if any
+			await test.deleteKey(context, cachedModel.provider);
 
-		// if (!apiKey) {
-		// 	vscode.window.showErrorMessage('API key is required to use this feature.');
-		// 	return;
-		// }
-
-		// const config = vscode.workspace.getConfiguration();
-		// await config.update('copilot.vision.apiKey', apiKey, vscode.ConfigurationTarget.Global);
-
-		// vscode.window.showInformationMessage('API key has been set successfully.');
+			// Set new key
+			await test.setAPIKey(context, cachedModel.provider);
+		}
 	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.deleteApiKey', async () => {
+		const test = new BaseAuth();
+		if (cachedModel) {
+			await test.deleteKey(context, cachedModel.provider);
+		}
+	}));
+
 
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectProviderAndModel', async () => {
 		const providers = [
@@ -118,7 +114,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('vision.generateAltText', async (args) => {
 			if (!cachedToken || !cachedModel) {
-				await initializeModelAndToken();
+				await initializeModelAndToken(undefined, context);
 			}
 			if (!cachedToken || !cachedModel) {
 				return;
@@ -143,8 +139,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		})
 	)
 
-	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
-		await initializeModelAndToken(stream);
+	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, contexts: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
+		await initializeModelAndToken(stream, context);
 
 		if (!cachedModel || !cachedToken) {
 			throw new Error('Something went wrong in the auth flow.');
@@ -289,10 +285,6 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
 }
 
 async function registerAuthProviders(context: vscode.ExtensionContext) {
-
-	
-
-
 	// const openAISecretStorage = new ApiKeySecretStorage('openai.keys', context);
 	// await openAISecretStorage.initialize();
 	// const openAIAuthProvider = new OpenAIAuthProvider(openAISecretStorage);
@@ -315,7 +307,7 @@ async function registerAuthProviders(context: vscode.ExtensionContext) {
 	// ));
 }
 
-export async function initializeModelAndToken(stream?: vscode.ChatResponseStream): Promise<{ cachedToken: string | undefined, cachedModel: ChatModel | undefined }> {
+export async function initializeModelAndToken(stream?: vscode.ChatResponseStream, context?: vscode.ExtensionContext): Promise<{ cachedToken: string | undefined, cachedModel: ChatModel | undefined }> {
 	// Default to Azure Open AI, only use a different model if one is selected explicitly
 	// through the model picker command
 	const config = vscode.workspace.getConfiguration();
@@ -328,7 +320,6 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 			model: 'gpt-4o'
 		}
 	}
-	
 
 	if (provider && model) {
 		cachedModel = { provider, model };
@@ -338,8 +329,14 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 		cachedToken = OPENAI_API_KEY
 	} else {
 		stream?.progress(`Setting ${cachedModel.provider} API key...`);
-		await vscode.commands.executeCommand('copilot.vision.setApiKey');
+		const key = await context?.secrets.get(cachedModel.provider);
+		if (key) {
+			cachedToken = key;
+		} else {
+			await vscode.commands.executeCommand('copilot.vision.setApiKey');
+		}
 	}
+
 	return { cachedToken, cachedModel };
 }
 
