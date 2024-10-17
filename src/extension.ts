@@ -119,22 +119,14 @@ export async function activate(context: vscode.ExtensionContext) {
 			if (!currentToken || !currentModel) {
 				return;
 			}
-			const altText = await generateAltText(currentModel, currentToken, args.resolvedImagePath, args.isHtml, args.type, args.altAfterSrc, true);
+      
+			const altText = await generateAltText(currentModel, currentToken, args.resolvedImagePath, args.isHtml, args.type, true);
+
 			if (!altText) {
 				return;
 			}
 			const edit = new vscode.WorkspaceEdit();
-			if (args.isHtml) {
-				if (args.altAfterSrc) {
-					// alt="text"
-					edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex + 8, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
-				} else {
-					// <img alt="text"
-					edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex + 9, args.range.start.line, args.altTextStartIndex + args.altTextLength + 9), altText);
-				}
-			} else {
-				edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
-			}
+			edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
 			await vscode.workspace.applyEdit(edit);
 		})
 	)
@@ -299,8 +291,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 					range: new vscode.Range(editor.selection.active, editor.selection.active),
 					isResolved: true,
 					type: 'verbose',
-					altTextLength: parsed.altTextLength,
-					altAfterSrc: parsed.altAfterSrc
+					altTextLength: parsed.altTextLength
 				}]
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),
@@ -317,8 +308,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 					range: new vscode.Range(editor.selection.active, editor.selection.active),
 					isResolved: true,
 					type: 'query',
-					altTextLength: parsed.altTextLength,
-					altAfterSrc: parsed.altAfterSrc
+						altTextLength: parsed.altTextLength
 				}]
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),
@@ -330,7 +320,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		return [verboseCodeLens, customQueryCodeLens];
 	}
 
-	private _isVerbose(currentLine: string, parsed: { imagePath: string; altTextStartIndex: number; isHTML: boolean; altTextLength: number; altAfterSrc: boolean; }): boolean {
+	private _isVerbose(currentLine: string, parsed: { imagePath: string; altTextStartIndex: number; isHTML: boolean; altTextLength: number; }): boolean {
 		const altText = currentLine.substring(parsed.altTextStartIndex, parsed.altTextStartIndex + parsed.altTextLength);
 		return altText.split(' ').length > VERBOSE_WORD_COuNT;
 	}
