@@ -326,6 +326,8 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 
 export function deactivate() { }
 
+// Web accessibility guidelines suggest alt text should be between 20 and 30 words
+const VERBOSE_WORD_COuNT = 30;
 export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 	// a class that allows you to generate more verbose alt text or provide a custom query
 	provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
@@ -335,13 +337,12 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		}
 		const currentLine = editor.document.lineAt(editor.selection.active.line).text;
 		const parsed = extractImageAttributes(currentLine, true);
-
 		if (!parsed) {
 			return;
 		}
-
+		const altTextIsVerbose = this._isVerbose(currentLine, parsed);
 		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
-		return [{
+		const verboseCodeLens = {
 			command: {
 				title: 'Increase alt text verbosity', command: 'vision.generateAltText', arguments: [{
 					resolvedImagePath,
@@ -358,8 +359,8 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),
 			isResolved: false
-		}
-			, {
+		};
+		const customQueryCodeLens = {
 			command: {
 					title: 'Refine alt text...', command: 'vision.generateAltText', arguments: [{
 					resolvedImagePath,
@@ -376,7 +377,16 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),
 			isResolved: false
-		}];
+		};
+		if (altTextIsVerbose) {
+			return [customQueryCodeLens];
+		}
+		return [verboseCodeLens, customQueryCodeLens];
+	}
+
+	private _isVerbose(currentLine: string, parsed: { imagePath: string; altTextStartIndex: number; isHTML: boolean; altTextLength: number; altAfterSrc: boolean; }): boolean {
+		const altText = currentLine.substring(parsed.altTextStartIndex, parsed.altTextStartIndex + parsed.altTextLength);
+		return altText.split(' ').length > VERBOSE_WORD_COuNT;
 	}
 }
 
