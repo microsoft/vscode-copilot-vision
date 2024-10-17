@@ -30,11 +30,6 @@ interface IVisionChatResult extends vscode.ChatResult {
 	}
 }
 
-export async function getKey(id: string, context: vscode.ExtensionContext): Promise<string | undefined> {
-	const key = await context.secrets.get(id);
-	return key;
-}
-
 export function getModel(): ChatModel {
 	const config = vscode.workspace.getConfiguration();
 	const currentModel = config.get<string>('copilot.vision.model');
