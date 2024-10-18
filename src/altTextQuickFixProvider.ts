@@ -12,6 +12,9 @@ interface ImageCodeAction extends vscode.CodeAction {
 	currentLine: string;
 	altTextStartIndex: number;
 	isHtml: boolean;
+	altTextLength: number;
+	type: 'generate' | 'refine';
+	isAI: boolean;
 }
 
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
@@ -23,23 +26,43 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
 		const currentLine = document.lineAt(range.start.line).text;
-		const parsed = extractImageAttributes(currentLine);
-
-		if (!parsed) {
+		const shouldGenerate = extractImageAttributes(currentLine);
+		const shouldRefineExisting = extractImageAttributes(currentLine, true);
+		if (!shouldGenerate && !shouldRefineExisting) {
 			return;
 		}
 
-		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
-		return [{
-			title: 'Generate Alt Text',
-			kind: vscode.CodeActionKind.QuickFix,
-			range,
-			document,
-			resolvedImagePath,
-			altTextStartIndex: parsed.altTextStartIndex,
-			isHtml: parsed.isHTML,
-			currentLine
-		}];
+		if (shouldGenerate) {
+			const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), shouldGenerate.imagePath);
+			return [{
+				title: vscode.l10n.t('Generate alt text'),
+				kind: vscode.CodeActionKind.QuickFix,
+				range,
+				document,
+				resolvedImagePath,
+				altTextStartIndex: shouldGenerate.altTextStartIndex,
+				isHtml: shouldGenerate.isHTML,
+				currentLine,
+				type: 'generate',
+				altTextLength: shouldGenerate.altTextLength,
+				isAI: true
+			}];
+		} else if (shouldRefineExisting) {
+			const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), shouldRefineExisting.imagePath);
+			return [{
+				title: vscode.l10n.t('Refine alt text'),
+				kind: vscode.CodeActionKind.QuickFix,
+				range,
+				document,
+				resolvedImagePath,
+				altTextStartIndex: shouldRefineExisting.altTextStartIndex,
+				isHtml: shouldRefineExisting.isHTML,
+				currentLine,
+				type: 'refine',
+				altTextLength: shouldRefineExisting.altTextLength,
+				isAI: true
+			}];
+		}
 	}
 
 	async resolveCodeAction(codeAction: ImageCodeAction, token: vscode.CancellationToken): Promise<ImageCodeAction | undefined> {
@@ -52,23 +75,35 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		if (!currentModel || !currentToken) {
 			return;
 		}
-		let altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', false);
-		if (!altText) {
-			return;
-		}
-		codeAction.edit = new vscode.WorkspaceEdit();
-		const edit = new vscode.WorkspaceEdit();
-		if (codeAction.isHtml) {
-			let addedTagIndex = 0;
-			if (!codeAction.currentLine.includes('alt=')) {
-				altText = `img alt="${altText}"`;
-				addedTagIndex = 3;
+
+		if (codeAction.type === 'generate') {
+			let altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', false);
+			if (!altText) {
+				return;
 			}
-			edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + addedTagIndex), altText);
-		} else {
-			edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);
+			codeAction.edit = new vscode.WorkspaceEdit();
+			const edit = new vscode.WorkspaceEdit();
+			if (codeAction.isHtml) {
+				let addedTagIndex = 0;
+				if (!codeAction.currentLine.includes('alt=')) {
+					altText = `img alt="${altText}"`;
+					addedTagIndex = 3;
+				}
+				edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + addedTagIndex), altText);
+			} else {
+				edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);
+			}
+			codeAction.edit = edit;
+			return codeAction;
+		} else if (codeAction.type === 'refine') {
+			const altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'refine', true);
+
+			if (!altText) {
+				return;
+			}
+			const edit = new vscode.WorkspaceEdit();
+			edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + codeAction.altTextLength), altText);
+			await vscode.workspace.applyEdit(edit);
 		}
-		codeAction.edit = edit;
-		return codeAction;
 	}
 }

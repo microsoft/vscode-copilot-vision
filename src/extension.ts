@@ -161,69 +161,6 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 
 export function deactivate() { }
 
-// Web accessibility guidelines suggest alt text should be between 20 and 30 words
-const VERBOSE_WORD_COuNT = 30;
-export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
-	// a class that allows you to generate more verbose alt text or provide a custom query
-	provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
-		const editor = vscode.window.activeTextEditor;
-		if (!editor) {
-			return [];
-		}
-		const currentLine = editor.document.lineAt(editor.selection.active.line).text;
-		const parsed = extractImageAttributes(currentLine, true);
-		if (!parsed) {
-			return;
-		}
-		const altTextIsVerbose = this._isVerbose(currentLine, parsed);
-		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
-		const verboseCodeLens = {
-			command: {
-				title: 'Increase alt text verbosity', command: 'vision.generateAltText', arguments: [{
-					resolvedImagePath,
-					currentLine,
-					altTextStartIndex: parsed.altTextStartIndex,
-					isHtml: parsed.isHTML,
-					document,
-					range: new vscode.Range(editor.selection.active, editor.selection.active),
-					isResolved: true,
-					type: 'verbose',
-					altTextLength: parsed.altTextLength
-				}]
-			},
-			range: new vscode.Range(editor.selection.active, editor.selection.active),
-			isResolved: false
-		};
-		const customQueryCodeLens = {
-			command: {
-				title: 'Refine alt text...', command: 'vision.generateAltText', arguments: [{
-					resolvedImagePath,
-					currentLine,
-					altTextStartIndex: parsed.altTextStartIndex,
-					isHtml: parsed.isHTML,
-					document,
-					range: new vscode.Range(editor.selection.active, editor.selection.active),
-					isResolved: true,
-					type: 'query',
-					altTextLength: parsed.altTextLength
-				}]
-			},
-			range: new vscode.Range(editor.selection.active, editor.selection.active),
-			isResolved: false
-		};
-		if (altTextIsVerbose) {
-			return [customQueryCodeLens];
-		}
-		return [verboseCodeLens, customQueryCodeLens];
-	}
-
-	private _isVerbose(currentLine: string, parsed: { imagePath: string; altTextStartIndex: number; isHTML: boolean; altTextLength: number; }): boolean {
-		const altText = currentLine.substring(parsed.altTextStartIndex, parsed.altTextStartIndex + parsed.altTextLength);
-		return altText.split(' ').length > VERBOSE_WORD_COuNT;
-	}
-}
-
-
 export function getModel(): ChatModel {
 	const config = vscode.workspace.getConfiguration();
 	const currentModel = config.get<string>('copilot.vision.model');
@@ -294,31 +231,6 @@ export function subscribe(context: vscode.ExtensionContext) {
 			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
 		})
 	);
-
-	context.subscriptions.push(
-		vscode.languages.registerCodeLensProvider('markdown', new AltTextCodeLensProvider())
-	);
-
-	context.subscriptions.push(
-		vscode.commands.registerCommand('vision.generateAltText', async (args) => {
-
-			const { currentToken, currentModel } = await initializeModelAndToken(undefined, context);
-
-			if (!currentToken || !currentModel) {
-				return;
-			}
-
-			const altText = await generateAltText(currentModel, currentToken, args.resolvedImagePath, args.isHtml, args.type, true);
-
-			if (!altText) {
-				return;
-			}
-			const edit = new vscode.WorkspaceEdit();
-			edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
-			await vscode.workspace.applyEdit(edit);
-		})
-	)
-
 }
 
 
