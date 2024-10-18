@@ -176,7 +176,7 @@ export function getModel(): ChatModel {
 export function subscribe(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.setApiKey', async () => {
 		const auth = new BaseAuth();
-		const provider = getModel().provider
+		const provider = getModel().provider;
 		if (provider) {
 			await auth.setAPIKey(provider, context);
 		}
@@ -184,7 +184,7 @@ export function subscribe(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.deleteApiKey', async () => {
 		const auth = new BaseAuth();
-		const provider = getModel().provider
+		const provider = getModel().provider;
 		if (provider) {
 			await auth.deleteKey(provider, context);
 		}
