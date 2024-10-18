@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import path from 'path';
 import { extractImageAttributes } from './imageUtils';
 import { generateAltText } from './vscodeImageUtils';
-import { ChatModel, initializeModelAndToken } from './extension';
+import { initializeModelAndToken } from './extension';
 
 interface ImageCodeAction extends vscode.CodeAction {
 	document: vscode.TextDocument;
@@ -15,9 +15,12 @@ interface ImageCodeAction extends vscode.CodeAction {
 }
 
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
+	private context: vscode.ExtensionContext;
+
+	constructor(context: vscode.ExtensionContext) {
+		this.context = context;
+	}
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
-	private _cachedToken: string | undefined;
-	private _cachedModel: ChatModel | undefined;
 	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
 		const currentLine = document.lineAt(range.start.line).text;
 		const parsed = extractImageAttributes(currentLine);
@@ -43,15 +46,13 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		if (token.isCancellationRequested) {
 			return;
 		}
-		if (!this._cachedToken || !this._cachedModel) {
-			const { cachedToken, cachedModel } = await initializeModelAndToken();
-			this._cachedToken = cachedToken;
-			this._cachedModel = cachedModel;
-		}
-		if (!this._cachedModel || !this._cachedToken) {
+
+		const { currentToken, currentModel } = await initializeModelAndToken(undefined, this.context);
+
+		if (!currentModel || !currentToken) {
 			return;
 		}
-		let altText = await generateAltText(this._cachedModel, this._cachedToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', false);
+		let altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', false);
 		if (!altText) {
 			return;
 		}

@@ -1,23 +1,16 @@
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import path from 'path';
-import { AnthropicAuthProvider, GeminiAuthProvider, OpenAIAuthProvider } from './auth/authProvider';
-import { ApiKeySecretStorage } from './auth/secretStorage';
 import { registerHtmlPreviewCommands } from './htmlPreview';
 import { extractImageAttributes } from './imageUtils';
 import { generateAltText, getBufferAndMimeTypeFromUri } from './vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
+import { BaseAuth } from './auth/validationAuth';
 
 dotenv.config();
 
 const VISION_PARTICIPANT_ID = 'chat-sample.vision';
-
-// OpenAI credentials
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-let cachedToken: string | undefined;
-let cachedModel: ChatModel | undefined;
 
 export enum ProviderType {
 	Anthropic = 'Anthropic',
@@ -38,92 +31,17 @@ interface IVisionChatResult extends vscode.ChatResult {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
+	subscribe(context);
 
-	await registerAuthProviders(context);
+	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, contexts: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
 
-	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectProviderAndModel', async () => {
-		const providers = [
-			{ label: ProviderType.Anthropic },
-			{ label: ProviderType.OpenAI },
-			{ label: ProviderType.Gemini }
-		];
+		let { currentModel, currentToken } = await initializeModelAndToken(stream, context);
 
-		const selectedModel = await vscode.window.showQuickPick(providers, {
-			// TODO: Localization
-			placeHolder: 'Select a provider.',
-		});
-
-		if (!selectedModel) {
-			return;
-		}
-
-		// Prompt the user to enter a label
-		const inputModel = await vscode.window.showInputBox({
-			placeHolder: cachedModel?.model ? `Current Model: ${cachedModel?.model}` : 'Enter a model',
-			prompt: 'Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
-		});
-
-		if (!inputModel) {
-			return;
-		}
-
-		// Update the configuration settings
-		const config = vscode.workspace.getConfiguration();
-		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
-		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
-
-
-		// Handle the selected provider and input model
-		cachedModel = { provider: selectedModel.label, model: inputModel };
-	}));
-	context.subscriptions.push(...registerHtmlPreviewCommands());
-
-	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
-		const query = '@vision troubleshoot my VS Code setup, as pictured.';
-		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
-	}));
-
-	context.subscriptions.push(
-		vscode.languages.registerCodeActionsProvider('markdown', new AltTextQuickFixProvider(), {
-			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
-		})
-	);
-
-	context.subscriptions.push(
-		vscode.languages.registerCodeLensProvider('markdown', new AltTextCodeLensProvider())
-	);
-
-	context.subscriptions.push(
-		vscode.commands.registerCommand('vision.generateAltText', async (args) => {
-			if (!cachedToken || !cachedModel) {
-				await initializeModelAndToken();
-			}
-			if (!cachedToken || !cachedModel) {
-				return;
-			}
-			const altText = await generateAltText(cachedModel, cachedToken, args.resolvedImagePath, args.isHtml, args.type, true);
-			if (!altText) {
-				return;
-			}
-			const edit = new vscode.WorkspaceEdit();
-			edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
-			await vscode.workspace.applyEdit(edit);
-		})
-	)
-
-	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, context: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
-		await initializeModelAndToken(stream);
-
-		if (!cachedModel || !cachedToken) {
+		if (!currentModel || !currentToken) {
 			throw new Error('Something went wrong in the auth flow.');
 		}
 
-		stream.progress(`Generating response from ${cachedModel?.provider}...`);
-
-		if (!cachedToken) {
-			handleError(logger, new Error('Please provide a valid API key.'), stream);
-			return { metadata: { command: '' } };
-		}
+		stream.progress(`Generating response from ${currentModel?.provider}...`);
 
 		const chatVariables = request.references;
 		if (chatVariables.length === 0) {
@@ -156,8 +74,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 
 		try {
-			const api = getApi(cachedModel.provider);
-			const result = await api.create(cachedToken, request.prompt, cachedModel, base64Strings, mimeType);
+			const api = getApi(currentModel.provider);
+			const result = await api.create(currentToken, request.prompt, currentModel, base64Strings, mimeType);
 			for (const message of result) {
 				stream.markdown(message);
 			}
@@ -165,7 +83,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		} catch (err: unknown) {
 			// Invalidate token if it's a 401 error
 			if (typeof err === 'object' && err && 'status' in err && err.status === 401) {
-				cachedToken = undefined;
+				currentToken = undefined;
 			}
 			handleError(logger, err, stream);
 		}
@@ -198,47 +116,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	}));
 }
 
-async function getOpenAiApiToken(): Promise<string | undefined> {
-	// Return cached token if available
-	if (cachedToken) {
-		return cachedToken;
-	}
-
-	// Pick up environment variable (mostly for development)
-	if (OPENAI_API_KEY) {
-		return OPENAI_API_KEY;
-	}
-
-	// Get from simple input box
-	const inputBox = vscode.window.createInputBox();
-	inputBox.ignoreFocusOut = true;
-	inputBox.title = 'Enter Azure OpenAI API Key';
-	const disposables: vscode.Disposable[] = [];
-	const value = new Promise<string | undefined>(r => {
-		inputBox.onDidTriggerButton(e => {
-		});
-		disposables.push(inputBox.onDidAccept(() => {
-			inputBox.hide();
-			r(inputBox.value);
-		}));
-		disposables.push(inputBox.onDidHide(() => {
-			r(undefined);
-		}));
-	});
-	inputBox.show();
-
-	cachedToken = await value;
-	if (!cachedToken) { // Normalize
-		cachedToken = undefined;
-	}
-
-	for (const d of disposables) {
-		d.dispose();
-	}
-
-	return cachedToken;
-}
-
 function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.ChatResponseStream): void {
 	// making the chat request might fail because
 	// - model does not exist
@@ -257,62 +134,29 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
 	}
 }
 
-async function registerAuthProviders(context: vscode.ExtensionContext) {
-	const openAISecretStorage = new ApiKeySecretStorage('openai.keys', context);
-	await openAISecretStorage.initialize();
-	const openAIAuthProvider = new OpenAIAuthProvider(openAISecretStorage);
-
-	const anthropicSecretStorage = new ApiKeySecretStorage('anthropic.keys', context);
-	await anthropicSecretStorage.initialize();
-	const anthropicAuthProvider = new AnthropicAuthProvider(anthropicSecretStorage);
-
-	const geminiSecretStorage = new ApiKeySecretStorage('bing.keys', context);
-	await geminiSecretStorage.initialize();
-	const geminiAuthProvider = new GeminiAuthProvider(geminiSecretStorage);
-
-	context.subscriptions.push(vscode.Disposable.from(
-		openAIAuthProvider,
-		vscode.authentication.registerAuthenticationProvider(OpenAIAuthProvider.ID, OpenAIAuthProvider.NAME, new OpenAIAuthProvider(openAISecretStorage), { supportsMultipleAccounts: true }),
-		anthropicAuthProvider,
-		vscode.authentication.registerAuthenticationProvider(AnthropicAuthProvider.ID, AnthropicAuthProvider.NAME, new AnthropicAuthProvider(anthropicSecretStorage), { supportsMultipleAccounts: true }),
-		geminiAuthProvider,
-		vscode.authentication.registerAuthenticationProvider(GeminiAuthProvider.ID, GeminiAuthProvider.NAME, new GeminiAuthProvider(geminiSecretStorage), { supportsMultipleAccounts: true })
-	));
-}
-
-export async function initializeModelAndToken(stream?: vscode.ChatResponseStream): Promise<{ cachedToken: string | undefined, cachedModel: ChatModel | undefined }> {
+export async function initializeModelAndToken(stream?: vscode.ChatResponseStream, context?: vscode.ExtensionContext): Promise<{ currentToken: string | undefined, currentModel: ChatModel | undefined }> {
 	// Default to Azure Open AI, only use a different model if one is selected explicitly
 	// through the model picker command
-	const config = vscode.workspace.getConfiguration();
-	const provider = config.get<ProviderType>('copilot.vision.provider');
-	const model = config.get<string>('copilot.vision.model')
+	const chatModel = getModel();
 
-	if (!cachedModel || (!provider && !model)) {
-		cachedModel = {
-			provider: ProviderType.OpenAI,
-			model: 'gpt-4o'
-		}
-	}
+	let contextToken: string | undefined;
 
-	if (provider && model) {
-		cachedModel = { provider, model };
-	}
-
-	if (cachedModel.provider === ProviderType.OpenAI && OPENAI_API_KEY) {
-		cachedToken = OPENAI_API_KEY
+	stream?.progress(`Setting ${chatModel.provider} API key...`);
+	
+	const key = await context?.secrets.get(chatModel.provider as ProviderType);
+	if (key) {
+		contextToken = key;
 	} else {
-		stream?.progress(`Setting ${cachedModel.provider} API key...`);
-		const session = await vscode.authentication.getSession(cachedModel.provider, [], {
-			createIfNone: true,
-		});
-
-		if (!session) {
-			throw new Error('Please provide an API key to use this feature.');
-		}
-
-		cachedToken = session.accessToken;
+		// Wait for the API key to be set
+		await vscode.commands.executeCommand('copilot.vision.setApiKey');
+		contextToken = await context?.secrets.get(chatModel.provider as ProviderType);
 	}
-	return { cachedToken, cachedModel };
+
+	if (!contextToken) {
+		throw new Error('API key is not set.');
+	}
+
+	return { currentToken: contextToken, currentModel: chatModel };
 }
 
 export function deactivate() { }
@@ -352,7 +196,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		};
 		const customQueryCodeLens = {
 			command: {
-					title: 'Refine alt text...', command: 'vision.generateAltText', arguments: [{
+				title: 'Refine alt text...', command: 'vision.generateAltText', arguments: [{
 					resolvedImagePath,
 					currentLine,
 					altTextStartIndex: parsed.altTextStartIndex,
@@ -361,7 +205,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 					range: new vscode.Range(editor.selection.active, editor.selection.active),
 					isResolved: true,
 					type: 'query',
-						altTextLength: parsed.altTextLength
+					altTextLength: parsed.altTextLength
 				}]
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),
@@ -377,6 +221,104 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		const altText = currentLine.substring(parsed.altTextStartIndex, parsed.altTextStartIndex + parsed.altTextLength);
 		return altText.split(' ').length > VERBOSE_WORD_COuNT;
 	}
+}
+
+
+export function getModel(): ChatModel {
+	const config = vscode.workspace.getConfiguration();
+	const currentModel = config.get<string>('copilot.vision.model');
+	const currentProvider = config.get<ProviderType>('copilot.vision.provider');
+	return { provider: currentProvider || ProviderType.OpenAI, model: currentModel || 'gpt-4o' };
+}
+
+export function subscribe(context: vscode.ExtensionContext) {
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.setApiKey', async () => {
+		const auth = new BaseAuth();
+		const provider = getModel().provider
+		if (provider) {
+			await auth.setAPIKey(context, provider);
+		}
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.deleteApiKey', async () => {
+		const auth = new BaseAuth();
+		const provider = getModel().provider
+		if (provider) {
+			await auth.deleteKey(context, provider);
+		}
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectProviderAndModel', async () => {
+		const providers = [
+			{ label: ProviderType.Anthropic },
+			{ label: ProviderType.OpenAI },
+			{ label: ProviderType.Gemini }
+		];
+
+		const selectedModel = await vscode.window.showQuickPick(providers, {
+			// TODO: Localization
+			placeHolder: 'Select a provider.',
+		});
+
+		if (!selectedModel) {
+			return;
+		}
+
+		const chatModel = getModel();
+
+		// Prompt the user to enter a label
+		const inputModel = await vscode.window.showInputBox({
+			placeHolder: chatModel.model ? `Current Model: ${chatModel.model}` : 'Enter a model',
+			prompt: 'Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
+		});
+
+		if (!inputModel) {
+			return;
+		}
+
+		// Update the configuration settings
+		const config = vscode.workspace.getConfiguration();
+		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
+		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
+	}));
+
+	context.subscriptions.push(...registerHtmlPreviewCommands());
+
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
+		const query = '@vision troubleshoot my VS Code setup, as pictured.';
+		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
+	}));
+
+	context.subscriptions.push(
+		vscode.languages.registerCodeActionsProvider('markdown', new AltTextQuickFixProvider(context), {
+			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.languages.registerCodeLensProvider('markdown', new AltTextCodeLensProvider())
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('vision.generateAltText', async (args) => {
+
+			const { currentToken, currentModel } = await initializeModelAndToken(undefined, context);
+
+			if (!currentToken || !currentModel) {
+				return;
+			}
+
+			const altText = await generateAltText(currentModel, currentToken, args.resolvedImagePath, args.isHtml, args.type, true);
+
+			if (!altText) {
+				return;
+			}
+			const edit = new vscode.WorkspaceEdit();
+			edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
+			await vscode.workspace.applyEdit(edit);
+		})
+	)
+
 }
 
 
