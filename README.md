@@ -20,7 +20,7 @@ Users can preview the image attachment flow by providing their own OpenAI, Anthr
 1. Copy and Paste an image from the clipboard.
 2. With an image in the clipboard, select the `Attach Context` button and select `Image from Clipboard` from the quick pick.
 3. `Attach Context` button and selecting and image in the workspace from the quick pick or selecting `Screenshot Window`.
-4. Dragging and dropping from anywhere outside VS Code into the chat panel.
+4. Drag and drop from anywhere outside VS Code into the chat panel.
 5. From the command palette, selecting `Copilot Vision: Troubleshoot with Vision`.
 
 
