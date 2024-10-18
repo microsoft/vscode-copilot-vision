@@ -1,4 +1,3 @@
-
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -19,19 +18,13 @@ interface ImageCodeAction extends vscode.CodeAction {
 	isHtml: boolean;
 }
 
-
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
 	private context: vscode.ExtensionContext;
-	private diagnosticCollection: vscode.DiagnosticCollection;
 
 	constructor(context: vscode.ExtensionContext) {
 		this.context = context;
-		this.diagnosticCollection = vscode.languages.createDiagnosticCollection('altTextDiagnostics');
-		context.subscriptions.push(this.diagnosticCollection);
 	}
-
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
-
 	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
 		const currentLine = document.lineAt(range.start.line).text;
 		const parsed = extractImageAttributes(currentLine);
@@ -41,7 +34,6 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		}
 
 		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
-
 		return [{
 			title: 'Generate Alt Text',
 			kind: vscode.CodeActionKind.QuickFix,
