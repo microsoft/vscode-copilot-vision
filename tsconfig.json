@@ -6,7 +6,7 @@
 			"ES2022"
 		],
 		"sourceMap": true,
-		"rootDir": "src",
+		"rootDir": ".",
 		"strict": true,   /* enable all strict type-checking options */
 		"outDir": "out",
 		"jsx": "react",
