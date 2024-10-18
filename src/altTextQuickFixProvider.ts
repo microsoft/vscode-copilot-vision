@@ -14,6 +14,7 @@ interface ImageCodeAction extends vscode.CodeAction {
 	isHtml: boolean;
 	altTextLength: number;
 	type: 'generate' | 'refine';
+	isAI: boolean;
 }
 
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
@@ -34,7 +35,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		if (shouldGenerate) {
 			const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), shouldGenerate.imagePath);
 			return [{
-				title: 'Generate Alt Text',
+				title: vscode.l10n.t('Generate alt text'),
 				kind: vscode.CodeActionKind.QuickFix,
 				range,
 				document,
@@ -43,12 +44,13 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 				isHtml: shouldGenerate.isHTML,
 				currentLine,
 				type: 'generate',
-				altTextLength: shouldGenerate.altTextLength
+				altTextLength: shouldGenerate.altTextLength,
+				isAI: true
 			}];
 		} else if (shouldRefineExisting) {
 			const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), shouldRefineExisting.imagePath);
 			return [{
-				title: 'Refine Alt Text',
+				title: vscode.l10n.t('Refine alt text'),
 				kind: vscode.CodeActionKind.QuickFix,
 				range,
 				document,
@@ -57,7 +59,8 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 				isHtml: shouldRefineExisting.isHTML,
 				currentLine,
 				type: 'refine',
-				altTextLength: shouldRefineExisting.altTextLength
+				altTextLength: shouldRefineExisting.altTextLength,
+				isAI: true
 			}];
 		}
 	}
