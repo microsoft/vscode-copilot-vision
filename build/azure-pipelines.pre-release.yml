@@ -1,0 +1,51 @@
+trigger: none
+pr: none
+
+resources:
+  repositories:
+    - repository: templates
+      type: github
+      name: microsoft/vscode-engineering
+      ref: main
+      endpoint: Monaco
+
+parameters:
+  - name: publishExtension
+    displayName: 🚀 Publish Extension
+    type: boolean
+    default: false
+
+extends:
+  template: azure-pipelines/extension/pre-release.yml@templates
+  parameters:
+    ghCreateRelease: false
+    publishExtension: ${{ parameters.publishExtension }}
+    vscePackageArgs: "--allow-missing-repository"
+
+    buildSteps:
+      - script: npm ci
+        displayName: Install dependencies
+
+      - script: npm run lint
+        displayName: Linting
+
+      # - script: npm run test
+      #   displayName: Run Tests
+
+      - script: npm run package
+        displayName: Package
+
+      - script: >
+          node ./scripts/prepare-prerelease-build.js
+        displayName: Generate package.json
+
+      - script: |
+          mv ./package.json ./package.json.bak
+          mv ./package.prerelease.json ./package.json
+        displayName: Override package.json
+
+    tsa:
+      config:
+        areaPath: 'Visual Studio Code Web Extensions'
+        serviceTreeID: '1788a767-5861-45fb-973b-c686b67c5541'
+      enabled: true

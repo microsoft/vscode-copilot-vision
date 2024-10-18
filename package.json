@@ -112,10 +112,15 @@
 	},
 	"main": "./out/extension.js",
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"lint": "eslint \"src/**/*.ts\"",
-		"watch": "tsc -watch -p ./"
+		"vscode:prepublish": "npm run package",
+		"compile": "webpack",
+		"watch": "webpack --watch",
+		"package": "webpack --mode production --devtool hidden-source-map",
+		"compile-tests": "tsc -p . --outDir dist",
+		"watch-tests": "tsc -p . -w --outDir dist",
+		"pretest": "npm run compile-tests && npm run compile && npm run lint",
+		"lint": "eslint src --ext ts",
+		"test": "vscode-test"
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.29.0",
@@ -134,6 +139,8 @@
 		"@typescript-eslint/eslint-plugin": "^7.14.0",
 		"@typescript-eslint/parser": "^7.14.0",
 		"eslint": "^8.26.0",
-		"typescript": "^5.5.2"
+		"typescript": "^5.5.2",
+		"webpack": "^5.92.0",
+    	"webpack-cli": "^5.1.4"
 	}
 }
