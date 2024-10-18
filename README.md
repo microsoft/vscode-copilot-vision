@@ -17,7 +17,7 @@ Users can preview the image attachment flow by providing their own OpenAI, Anthr
 
 
 # How do I attach images?
-1. Copy and Pasting an image from clipboard.
+1. Copy and Paste an image from the clipboard.
 2. Having an image in clipboard, selecting the `Attach Context` button and selecting `Image from Clipboard` from the quick pick.
 3. `Attach Context` button and selecting and image in the workspace from the quick pick or selecting `Screenshot Window`.
 4. Dragging and dropping from anywhere outside VS Code into the chat panel.
