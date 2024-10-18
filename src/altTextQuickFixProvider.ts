@@ -9,7 +9,6 @@ import path from 'path';
 import { extractImageAttributes } from './utils/imageUtils';
 import { generateAltText } from './utils/vscodeImageUtils';
 import { initializeModelAndToken } from './extension';
-import { extractImageAttributes2 } from './imageUtils';
 
 interface ImageCodeAction extends vscode.CodeAction {
 	document: vscode.TextDocument;
@@ -51,7 +50,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			resolvedImagePath,
 			altTextStartIndex: parsed.altTextStartIndex,
 			isHtml: parsed.isHTML,
-			currentLine,
+			currentLine
 		}];
 	}
 
