@@ -64,7 +64,7 @@ This GitHub Copilot Extension sample shows:
 - How to contribute a chat participant to the GitHub Copilot Chat view.
 - How to use the proposed API (https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.chatReferenceBinaryData.d.ts) to get image data from the chat request. 
 
-![demo](./demo.gif)
+![Screenshot of a chat exchange. A user asks for HTML and CSS for a landing page. The response provides a basic HTML structure with a header, navigation links (Home, About, Contact), and a link to an external CSS file.](./assets/demo.gif)
 
 Documentation can be found here:
 - https://code.visualstudio.com/api/extension-guides/chat
