@@ -1,6 +1,6 @@
 {
 	"name": "vscode-copilot-vision",
-	"publisher": "Microsoft",
+	"publisher": "ms-vscode",
 	"displayName": "Vision for Copilot Preview",
 	"description": "A chat extension providing vision capabilities in VS Code, with a focus on accessibility.",
 	"repository": {
