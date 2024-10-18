@@ -49,7 +49,7 @@ export class ChatReferenceBinaryData {
 After creating a chat handler, you can access attached variables via `request.references`.
 
 Notes:
-1. There are many variable types. Images can come from `URI` (typically context from a workspace or from file explorer) or from `ChatReferenceBinaryData` (typically from the clipboard).
+1. There are several variable types for handling images. Images can originate from a URI, which is typically sourced from a workspace or file explorer, or from ChatReferenceBinaryData, often used for images copied from the clipboard
 2. `URI` files must be read and converted to `base64` strings to be used.
 3. `ChatReferenceBinaryData` returns a promise that resolves to the binary data as a `UInt8Array`, which must be converted to `base64` strings to be used.
 
