@@ -12,8 +12,7 @@
 		"url": "https://github.com/microsoft/vscode-copilot-vision/issues"
 	},
 	"enabledApiProposals": [
-		"chatReferenceBinaryData",
-		"codeActionAI"
+		"chatReferenceBinaryData"
 	],
 	"version": "0.1.0",
 	"engines": {

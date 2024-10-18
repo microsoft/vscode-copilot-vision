@@ -18,7 +18,6 @@ interface ImageCodeAction extends vscode.CodeAction {
 	currentLine: string;
 	altTextStartIndex: number;
 	isHtml: boolean;
-	isAi: boolean;
 }
 
 
@@ -34,44 +33,15 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 
-	
 	async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<ImageCodeAction[] | undefined> {
 		const currentLine = document.lineAt(range.start.line).text;
 		const parsed = extractImageAttributes(currentLine);
-		const parsed2 = extractImageAttributes2(currentLine);
 
-		if (!parsed || !parsed2) {
+		if (!parsed) {
 			return;
 		}
 
 		const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), parsed.imagePath);
-		const tempRange = new vscode.Range(range.start.line, parsed2.range.start, range.start.line, parsed2.range.end);
-
-		// Add diagnostic if alt text is missing
-		if (parsed.altTextLength === 0) {
-			const altTextRange = new vscode.Range(
-				range.start.line,
-				parsed2.range.start,
-				range.start.line,
-				parsed2.range.end
-			);
-
-			const diagnostic = new vscode.Diagnostic(
-				altTextRange,
-				'Alt text is missing for the image.',
-				vscode.DiagnosticSeverity.Warning
-			);
-
-			this.diagnosticCollection.set(document.uri, [diagnostic]);
-		} else {
-			this.diagnosticCollection.delete(document.uri);
-		}
-
-		const diagnostic = new vscode.Diagnostic(
-			tempRange,
-			'Alt text is missing for the image.',
-			vscode.DiagnosticSeverity.Warning
-		);
 
 		return [{
 			title: 'Generate Alt Text',
@@ -82,7 +52,6 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			altTextStartIndex: parsed.altTextStartIndex,
 			isHtml: parsed.isHTML,
 			currentLine,
-			isAi: true
 		}];
 	}
 
