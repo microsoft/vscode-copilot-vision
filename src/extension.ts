@@ -30,116 +30,18 @@ interface IVisionChatResult extends vscode.ChatResult {
 	}
 }
 
-export function getModel(): ChatModel {
-	const config = vscode.workspace.getConfiguration();
-	const currentModel = config.get<string>('copilot.vision.model');
-	const currentProvider = config.get<ProviderType>('copilot.vision.provider');
-	return { provider: currentProvider || ProviderType.OpenAI, model: currentModel || 'gpt-4o' };
-}
-
 export async function activate(context: vscode.ExtensionContext) {
-
-	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.setApiKey', async () => {
-		const auth = new BaseAuth();
-		const provider = getModel().provider
-		if (provider) {
-			await auth.setAPIKey(context, provider);
-		}
-	}));
-
-	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.deleteApiKey', async () => {
-		const auth = new BaseAuth();
-		const provider = getModel().provider
-		if (provider) {
-			await auth.deleteKey(context, provider);
-		}
-	}));
-
-	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectProviderAndModel', async () => {
-		const providers = [
-			{ label: ProviderType.Anthropic },
-			{ label: ProviderType.OpenAI },
-			{ label: ProviderType.Gemini }
-		];
-
-		const selectedModel = await vscode.window.showQuickPick(providers, {
-			// TODO: Localization
-			placeHolder: 'Select a provider.',
-		});
-
-		if (!selectedModel) {
-			return;
-		}
-
-		const chatModel = getModel();
-	
-		// Prompt the user to enter a label
-		const inputModel = await vscode.window.showInputBox({
-			placeHolder: chatModel.model ? `Current Model: ${chatModel.model}` : 'Enter a model',
-			prompt: 'Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
-		});
-
-		if (!inputModel) {
-			return;
-		}
-
-		// Update the configuration settings
-		const config = vscode.workspace.getConfiguration();
-		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
-		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
-	}));
-
-	context.subscriptions.push(...registerHtmlPreviewCommands());
-
-	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
-		const query = '@vision troubleshoot my VS Code setup, as pictured.';
-		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
-	}));
-
-	context.subscriptions.push(
-		vscode.languages.registerCodeActionsProvider('markdown', new AltTextQuickFixProvider(context), {
-			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
-		})
-	);
-
-	context.subscriptions.push(
-		vscode.languages.registerCodeLensProvider('markdown', new AltTextCodeLensProvider())
-	);
-
-	context.subscriptions.push(
-		vscode.commands.registerCommand('vision.generateAltText', async (args) => {
-
-			const { currentToken, currentModel } = await initializeModelAndToken(undefined, context);
-
-			if (!currentToken || !currentModel) {
-				return;
-			}
-      
-			const altText = await generateAltText(currentModel, currentToken, args.resolvedImagePath, args.isHtml, args.type, true);
-
-			if (!altText) {
-				return;
-			}
-			const edit = new vscode.WorkspaceEdit();
-			edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
-			await vscode.workspace.applyEdit(edit);
-		})
-	)
+	subscribe(context);
 
 	const handler: vscode.ChatRequestHandler = async (request: vscode.ChatRequest, contexts: vscode.ChatContext, stream: vscode.ChatResponseStream, token: vscode.CancellationToken): Promise<IVisionChatResult> => {
-		
-		let {currentModel, currentToken} = await initializeModelAndToken(stream, context);
+
+		let { currentModel, currentToken } = await initializeModelAndToken(stream, context);
 
 		if (!currentModel || !currentToken) {
 			throw new Error('Something went wrong in the auth flow.');
 		}
 
 		stream.progress(`Generating response from ${currentModel?.provider}...`);
-
-		if (!currentToken) {
-			handleError(logger, new Error('Please provide a valid API key.'), stream);
-			return { metadata: { command: '' } };
-		}
 
 		const chatVariables = request.references;
 		if (chatVariables.length === 0) {
@@ -236,9 +138,9 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 	// Default to Azure Open AI, only use a different model if one is selected explicitly
 	// through the model picker command
 	const chatModel = getModel();
-	
+
 	let contextToken: string | undefined;
-	
+
 	stream?.progress(`Setting ${chatModel.provider} API key...`);
 	
 	const key = await context?.secrets.get(chatModel.provider as ProviderType);
@@ -294,7 +196,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		};
 		const customQueryCodeLens = {
 			command: {
-					title: 'Refine alt text...', command: 'vision.generateAltText', arguments: [{
+				title: 'Refine alt text...', command: 'vision.generateAltText', arguments: [{
 					resolvedImagePath,
 					currentLine,
 					altTextStartIndex: parsed.altTextStartIndex,
@@ -303,7 +205,7 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 					range: new vscode.Range(editor.selection.active, editor.selection.active),
 					isResolved: true,
 					type: 'query',
-						altTextLength: parsed.altTextLength
+					altTextLength: parsed.altTextLength
 				}]
 			},
 			range: new vscode.Range(editor.selection.active, editor.selection.active),
@@ -319,6 +221,104 @@ export class AltTextCodeLensProvider implements vscode.CodeLensProvider {
 		const altText = currentLine.substring(parsed.altTextStartIndex, parsed.altTextStartIndex + parsed.altTextLength);
 		return altText.split(' ').length > VERBOSE_WORD_COuNT;
 	}
+}
+
+
+export function getModel(): ChatModel {
+	const config = vscode.workspace.getConfiguration();
+	const currentModel = config.get<string>('copilot.vision.model');
+	const currentProvider = config.get<ProviderType>('copilot.vision.provider');
+	return { provider: currentProvider || ProviderType.OpenAI, model: currentModel || 'gpt-4o' };
+}
+
+export function subscribe(context: vscode.ExtensionContext) {
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.setApiKey', async () => {
+		const auth = new BaseAuth();
+		const provider = getModel().provider
+		if (provider) {
+			await auth.setAPIKey(context, provider);
+		}
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.deleteApiKey', async () => {
+		const auth = new BaseAuth();
+		const provider = getModel().provider
+		if (provider) {
+			await auth.deleteKey(context, provider);
+		}
+	}));
+
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.selectProviderAndModel', async () => {
+		const providers = [
+			{ label: ProviderType.Anthropic },
+			{ label: ProviderType.OpenAI },
+			{ label: ProviderType.Gemini }
+		];
+
+		const selectedModel = await vscode.window.showQuickPick(providers, {
+			// TODO: Localization
+			placeHolder: 'Select a provider.',
+		});
+
+		if (!selectedModel) {
+			return;
+		}
+
+		const chatModel = getModel();
+
+		// Prompt the user to enter a label
+		const inputModel = await vscode.window.showInputBox({
+			placeHolder: chatModel.model ? `Current Model: ${chatModel.model}` : 'Enter a model',
+			prompt: 'Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
+		});
+
+		if (!inputModel) {
+			return;
+		}
+
+		// Update the configuration settings
+		const config = vscode.workspace.getConfiguration();
+		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
+		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
+	}));
+
+	context.subscriptions.push(...registerHtmlPreviewCommands());
+
+	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
+		const query = '@vision troubleshoot my VS Code setup, as pictured.';
+		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
+	}));
+
+	context.subscriptions.push(
+		vscode.languages.registerCodeActionsProvider('markdown', new AltTextQuickFixProvider(context), {
+			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.languages.registerCodeLensProvider('markdown', new AltTextCodeLensProvider())
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('vision.generateAltText', async (args) => {
+
+			const { currentToken, currentModel } = await initializeModelAndToken(undefined, context);
+
+			if (!currentToken || !currentModel) {
+				return;
+			}
+
+			const altText = await generateAltText(currentModel, currentToken, args.resolvedImagePath, args.isHtml, args.type, true);
+
+			if (!altText) {
+				return;
+			}
+			const edit = new vscode.WorkspaceEdit();
+			edit.replace(args.document.uri, new vscode.Range(args.range.start.line, args.altTextStartIndex, args.range.start.line, args.altTextStartIndex + args.altTextLength), altText);
+			await vscode.workspace.applyEdit(edit);
+		})
+	)
+
 }
 
 
