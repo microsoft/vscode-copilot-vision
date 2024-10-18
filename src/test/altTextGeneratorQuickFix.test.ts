@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { extractImageAttributes } from '../imageUtils';
+import { extractImageAttributes } from '../utils/imageUtils';
 import { describe, it } from 'node:test';
 
 describe('extractImageInfo', () => {

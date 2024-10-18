@@ -1,9 +1,14 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See LICENSE in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import path from 'path';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { extractImageAttributes } from './imageUtils';
-import { generateAltText, getBufferAndMimeTypeFromUri } from './vscodeImageUtils';
+import { extractImageAttributes } from './utils/imageUtils';
+import { generateAltText, getBufferAndMimeTypeFromUri } from './utils/vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
 import { BaseAuth } from './auth/validationAuth';
