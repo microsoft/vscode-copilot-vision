@@ -1,8 +1,8 @@
 {
 	"name": "vscode-copilot-vision",
 	"publisher": "Microsoft",
-	"displayName": "VS Code Copilot Vision",
-	"description": "Chat extension providing vision capabilities to Copilot, with a focus on accessibility.",
+	"displayName": "Vision for Copilot Preview",
+	"description": "A chat extension providing vision capabilities in VS Code, with a focus on accessibility.",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/vscode/vscode-copilot-vision"
@@ -21,11 +21,10 @@
 	},
 	"categories": [
 		"AI",
-		"Chat",
-		"Programming Languages",
-		"Machine Learning"
+		"Chat"
 	],
 	"keywords": [
+		"chat-participant",
 		"ai",
 		"openai",
 		"anthropic",

@@ -1,5 +1,10 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See LICENSE in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 import assert from 'assert';
-import { extractImageAttributes } from '../imageUtils';
+import { extractImageAttributes } from '../utils/imageUtils';
 import { describe, it } from 'node:test';
 
 describe('extractImageInfo', () => {

@@ -1,9 +1,14 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See LICENSE in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import path from 'path';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { extractImageAttributes } from './imageUtils';
-import { generateAltText, getBufferAndMimeTypeFromUri } from './vscodeImageUtils';
+import { extractImageAttributes } from './utils/imageUtils';
+import { generateAltText, getBufferAndMimeTypeFromUri } from './utils/vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
 import { BaseAuth } from './auth/validationAuth';
@@ -41,11 +46,11 @@ export async function activate(context: vscode.ExtensionContext) {
 			throw new Error('Something went wrong in the auth flow.');
 		}
 
-		stream.progress(`Generating response from ${currentModel?.provider}...`);
+		stream.progress(vscode.l10n.t(`Generating response from ${currentModel?.provider}...`));
 
 		const chatVariables = request.references;
 		if (chatVariables.length === 0) {
-			stream.markdown('I need a picture to generate a response.');
+			stream.markdown(vscode.l10n.t('I need a picture to generate a response.'));
 			return { metadata: { command: '' } };
 		}
 
@@ -57,7 +62,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			if (reference.value instanceof vscode.Uri) {
 				const result = await getBufferAndMimeTypeFromUri(reference.value);
 				if (!result) {
-					stream.markdown(`The file is not an image.`);
+					stream.markdown(vscode.l10n.t(`The file is not an image.`));
 					return { metadata: { command: '' } };
 				}
 				mimeType = result.mimeType;
@@ -77,7 +82,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			const api = getApi(currentModel.provider);
 			const result = await api.create(currentToken, request.prompt, currentModel, base64Strings, mimeType);
 			for (const message of result) {
-				stream.markdown(message);
+				stream.markdown(vscode.l10n.t(message));
 			}
 
 		} catch (err: unknown) {
@@ -173,7 +178,7 @@ export function subscribe(context: vscode.ExtensionContext) {
 		const auth = new BaseAuth();
 		const provider = getModel().provider
 		if (provider) {
-			await auth.setAPIKey(context, provider);
+			await auth.setAPIKey(provider, context);
 		}
 	}));
 
@@ -181,7 +186,7 @@ export function subscribe(context: vscode.ExtensionContext) {
 		const auth = new BaseAuth();
 		const provider = getModel().provider
 		if (provider) {
-			await auth.deleteKey(context, provider);
+			await auth.deleteKey(provider, context);
 		}
 	}));
 
@@ -193,8 +198,7 @@ export function subscribe(context: vscode.ExtensionContext) {
 		];
 
 		const selectedModel = await vscode.window.showQuickPick(providers, {
-			// TODO: Localization
-			placeHolder: 'Select a provider.',
+			placeHolder: vscode.l10n.t('Select a provider.'),
 		});
 
 		if (!selectedModel) {
@@ -205,8 +209,8 @@ export function subscribe(context: vscode.ExtensionContext) {
 
 		// Prompt the user to enter a label
 		const inputModel = await vscode.window.showInputBox({
-			placeHolder: chatModel.model ? `Current Model: ${chatModel.model}` : 'Enter a model',
-			prompt: 'Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.' //TODO: Deployments here as validd examples as we dev. Maybe find a good way to display deployments that suport vision based on selected model.
+			placeHolder: chatModel.model ? vscode.l10n.t(`Current Model: ${chatModel.model}`) : vscode.l10n.t('Enter a model'),
+			prompt: vscode.l10n.t('Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.') 
 		});
 
 		if (!inputModel) {

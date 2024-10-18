@@ -1,7 +1,11 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See LICENSE in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 
 import * as vscode from 'vscode';
-import { getApi } from './apiFacade';
-import { ChatModel } from './extension';
+import { getApi } from '../apiFacade';
+import { ChatModel } from '../extension';
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
 export async function getBufferAndMimeTypeFromUri(uri: vscode.Uri): Promise<{ buffer: Buffer, mimeType: string } | undefined> {

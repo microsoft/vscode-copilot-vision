@@ -2,6 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+
 import {
 	Disposable,
 	ExtensionContext,
@@ -23,7 +24,8 @@ export class BaseAuth {
 		try {
 			const api = getApi(providerType);
 			const config = workspace.getConfiguration();
-			const model: string | undefined = config.get('copilot.vision.model');
+			const model = config.get<string>('copilot.vision.model');
+			
 			if (!model) {
 				throw new Error('Invalid Model');
 			}
@@ -43,9 +45,9 @@ export class BaseAuth {
 		}
 	}
 
-	async setAPIKey(context: ExtensionContext, name: string): Promise<void> {
+	async setAPIKey(name: string, context: ExtensionContext): Promise<void> {
 		const input = window.createInputBox();
-		input.title = l10n.t('{0} Login', name);
+		input.title = l10n.t('Set {0} API Key', name);
 
 		// Get API Key
 		const placeholderText = l10n.t('Enter your {0} API key', name);
@@ -83,12 +85,12 @@ export class BaseAuth {
 		context.secrets.store(name, key);
 	}
 
-	async deleteKey(context: ExtensionContext, id: string,): Promise<void> {
-		await context.secrets.delete(id);
+	async deleteKey(name: string, context: ExtensionContext): Promise<void> {
+		await context.secrets.delete(name);
 	}
 
-	async getKey(id: string, context: ExtensionContext): Promise<string | undefined> {
-		const key = await context.secrets.get(id);
+	async getKey(name: string, context: ExtensionContext): Promise<string | undefined> {
+		const key = await context.secrets.get(name);
 		return key;
 	}
 
