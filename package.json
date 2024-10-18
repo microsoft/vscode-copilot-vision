@@ -93,11 +93,19 @@
 			},
 			{
 				"command": "copilot.vision.selectProviderAndModel",
-				"title": "Copilot Vision: Set a provider and model."
+				"title": "Copilot Vision: Set a Provider and Model."
 			},
 			{
 				"command": "copilot.vision.troubleshoot",
 				"title": "Copilot Vision: Troubleshoot"
+			},
+				{
+				"command": "copilot.vision.setApiKey",
+				"title": "Copilot Vision: Set Current Model's API Key"
+			},
+				{
+				"command": "copilot.vision.deleteApiKey",
+				"title": "Copilot Vision: Delete Current Model's API Key"
 			}
 		]
 	},
