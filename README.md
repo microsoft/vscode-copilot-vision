@@ -1,6 +1,6 @@
 # Description
 
-Vision for Copilot Preview is a preview extension that allows users to attach images as context into chat. This extension will be deprecated in favor of built-in image flow in Github Copilot Chat. 
+Vision for Copilot Preview is an extension that enhances chat interactions by enabling users to leverage advanced vision capabilities. This preview feature allows users to attach images directly as contextual input, enriching conversations and enabling more dynamic, visually-supported responses. This extension will be deprecated in favor of built-in image flow in Github Copilot Chat. 
 
 Users can preview the image attachment flow by providing their own OpenAI, Anthropic, or Gemini keys. Get started by attaching images from the clipboard or by dragging images into the chat. Users can also generate `alt` text for images in markdown using the contributed code action.
 
