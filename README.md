@@ -9,7 +9,7 @@ Users can preview the image attachment flow by providing their own OpenAI, Anthr
 - Set a Provider and Model.
 - Set Current Model's API Key.
 - Remove Current Model's API Key.
-- Troubleshoot (takes a screenshot and sends it to chat).
+- Troubleshoot (screenshots the VS Code window and sends it to chat).
 
 ### Settings
 - `copilot.vision.provider`: The selected provider (currently limted to OpenAI, Anthropic, and Gemini).
