@@ -17,7 +17,7 @@
 	],
 	"version": "0.1.0",
 	"engines": {
-		"vscode": "^1.94.0"
+		"vscode": "^1.95.0"
 	},
 	"categories": [
 		"AI",
