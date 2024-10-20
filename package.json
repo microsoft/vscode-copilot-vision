@@ -90,7 +90,7 @@
 		"commands": [
 			{
 				"command": "copilot.vision.showHtmlPreview",
-				"title": "Copilot Vision: Show HTML Preview"
+				"title": "Copilot Vision: Show HTML Preview (Experimental)"
 			},
 			{
 				"command": "copilot.vision.selectProviderAndModel",
