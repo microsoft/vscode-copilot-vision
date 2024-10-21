@@ -85,17 +85,7 @@
 				}
 			}
 		],
-		"codeLensProviders": [
-			{
-				"language": "markdown",
-				"provider": "AltTextCodeLensProvider"
-			}
-		],
 		"commands": [
-			{
-				"command": "copilot.vision.showHtmlPreview",
-				"title": "Copilot Vision: Show HTML Preview (Experimental)"
-			},
 			{
 				"command": "copilot.vision.selectProviderAndModel",
 				"title": "Copilot Vision: Set a Provider and Model."
