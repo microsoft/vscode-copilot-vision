@@ -4,7 +4,7 @@ Vision for Copilot Preview is an extension that enhances chat interactions by en
 
 For now, users can experience the image attachment flow by using their own OpenAI, Anthropic, or Gemini keys. Get started by easily attaching images from the clipboard or dragging them directly into the chat. 
 
-Additionally, users can generate or refine alt text for images in markdown documents with the provided code action, simplifying the process of incorporating descriptive text for better context and accessibility.
+Additionally, users can generate or refine alt text for images in markdown documents with the provided code actions, simplifying the process of incorporating descriptive text for better context and accessibility.
 ![An example markdown document displays a quick fix feature for generating alt text, resulting in the automatic insertion of an alt tag and a value. The user is then prompted with a different quick fix to refine the alt text using an input box. After the user enters and submits their refined description, the alt text is updated accordingly.](https://raw.githubusercontent.com/microsoft/vscode-copilot-vision/refs/heads/main/assets/demo-alt-text.gif)
 
 ## Contributed Commands and Settings
