@@ -7,8 +7,7 @@ import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
 import path from 'path';
 import { registerHtmlPreviewCommands } from './htmlPreview';
-import { extractImageAttributes } from './utils/imageUtils';
-import { generateAltText, getBufferAndMimeTypeFromUri } from './utils/vscodeImageUtils';
+import { getBufferAndMimeTypeFromUri } from './utils/vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
 import { BaseAuth } from './auth/validationAuth';
@@ -194,7 +193,8 @@ export function subscribe(context: vscode.ExtensionContext) {
 		const providers = [
 			{ label: ProviderType.Anthropic },
 			{ label: ProviderType.OpenAI },
-			{ label: ProviderType.Gemini }
+			{ label: ProviderType.Gemini },
+			{ label: ProviderType.AzureOpenAI }
 		];
 
 		const selectedModel = await vscode.window.showQuickPick(providers, {

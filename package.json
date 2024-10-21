@@ -50,7 +50,8 @@
 					"enum": [
 						"OpenAI",
 						"Anthropic",
-						"Gemini"
+						"Gemini",
+						"AzureOpenAI"
 					],
 					"default": "OpenAI",
 					"description": "The selected provider."

@@ -127,7 +127,7 @@ export class AzureOpenAIApi implements ApiFacade {
 			const apiVersion = "2024-05-01-preview";
 			const model = provider.model; // gpt-4o-mini or Gpt4
 			const client = new AzureOpenAI({ endpoint, apiVersion, deployment: model, apiKey });
-
+			
 			const prompts: ChatCompletionUserMessageParam[] = [
 				{ role: 'user', content: request },
 			];
@@ -140,7 +140,7 @@ export class AzureOpenAIApi implements ApiFacade {
 			const result = await client.chat.completions.create({
 				messages: prompts,
 				model,
-				max_tokens: 8192,
+				max_tokens: 4096,
 				temperature: 0.7,
 				top_p: 0.95,
 				frequency_penalty: 0,
@@ -171,7 +171,7 @@ export function getApi(type: ProviderType): ApiFacade {
 		case ProviderType.OpenAI:
 			return new OpenAIApi();
 		case ProviderType.AzureOpenAI:
-			throw new Error('Azure Open AI does not currently support vision.');
+			return new AzureOpenAIApi();
 		default:
 			throw new Error('Invalid model type');
 	}
