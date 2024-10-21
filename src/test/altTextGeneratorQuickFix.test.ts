@@ -72,7 +72,7 @@ describe('extractImageInfo', () => {
 	});
 
 
-	describe('Code Lens: Refine Alt Text', () => {
+	describe('Quick Fix: Refine Alt Text', () => {
 		const refineExisting = true;
 		describe('Alt text missing: should return undefined', () => {
 			it('Markdown Image syntax', () => {
