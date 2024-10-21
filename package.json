@@ -39,7 +39,8 @@
 	"activationEvents": [
 		"onLanguage:markdown",
 		"onLanguage:typescriptreact",
-		"onLanguage:html"
+		"onLanguage:html",
+		"onLanguage:javascriptreact"
 	],
 	"contributes": {
 		"configuration": {
