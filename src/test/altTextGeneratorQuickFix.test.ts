@@ -7,8 +7,8 @@ import assert from 'assert';
 import { extractImageAttributes } from '../utils/imageUtils';
 import { describe, it } from 'node:test';
 
-describe('extractImageInfo', () => {
-	describe('Quick Fix: Create Alt Text', () => {
+describe('Alt text quick fixes: extractImageInfo', () => {
+	describe('Generate Alt Text', () => {
 		const refineExisting = false;
 		describe('Alt text missing: should provide result', () => {
 			it('Markdown Image syntax', () => {
@@ -65,14 +65,14 @@ describe('extractImageInfo', () => {
 
 			it('Markdown Link with Image syntax', () => {
 				const markdownLinkImageWithAlt = '[![alt text](path/to/image.png)](http://example.com)';
-				const match = extractImageAttributes(markdownLinkImageWithAlt, refineExisting)
+				const match = extractImageAttributes(markdownLinkImageWithAlt, refineExisting);
 				assert(!match);
 			});
 		});
 	});
 
 
-	describe('Quick Fix: Refine Alt Text', () => {
+	describe('Refine alt text', () => {
 		const refineExisting = true;
 		describe('Alt text missing: should return undefined', () => {
 			it('Markdown Image syntax', () => {
@@ -89,7 +89,7 @@ describe('extractImageInfo', () => {
 
 			it('Markdown Link with Image syntax', () => {
 				const markdownLinkImage = '[![](path/to/image.png)](http://example.com)';
-				const match = extractImageAttributes(markdownLinkImage, refineExisting)
+				const match = extractImageAttributes(markdownLinkImage, refineExisting);
 				assert(!match);
 			});
 		});
