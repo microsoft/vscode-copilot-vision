@@ -5,7 +5,7 @@
 	"description": "A chat extension providing vision capabilities in VS Code, with a focus on accessibility.",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/vscode/vscode-copilot-vision"
+		"url": "https://github.com/microsoft/vscode-copilot-vision"
 	},
 	"icon": "assets/vision-eye-logo.png",
 	"bugs": {
