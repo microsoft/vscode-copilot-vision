@@ -37,7 +37,9 @@
 		"co-pilot"
 	],
 	"activationEvents": [
-		"onLanguage:markdown"
+		"onLanguage:markdown",
+		"onLanguage:tsx",
+		"onLanguage:html"
 	],
 	"contributes": {
 		"configuration": {
