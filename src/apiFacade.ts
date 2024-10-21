@@ -124,7 +124,7 @@ export class AzureOpenAIApi implements ApiFacade {
 		try {
 			// EXAMPLE OF USING AZURE OPENAI
 			const endpoint = process.env["AZURE_ENDPOINT"] || "https://vscode-openai.openai.azure.com/";
-			const apiVersion = "2024-05-01-preview";
+			const apiVersion = "2024-08-01-preview";
 			const model = provider.model; // gpt-4o-mini or Gpt4
 			const client = new AzureOpenAI({ endpoint, apiVersion, deployment: model, apiKey });
 			

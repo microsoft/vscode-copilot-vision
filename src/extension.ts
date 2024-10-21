@@ -5,8 +5,6 @@
 
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
-import path from 'path';
-import { registerHtmlPreviewCommands } from './htmlPreview';
 import { getBufferAndMimeTypeFromUri } from './utils/vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
@@ -138,6 +136,8 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
 	}
 }
 
+
+// Helper Functions
 export async function initializeModelAndToken(stream?: vscode.ChatResponseStream, context?: vscode.ExtensionContext): Promise<{ currentToken: string | undefined, currentModel: ChatModel | undefined }> {
 	// Default to Azure Open AI, only use a different model if one is selected explicitly
 	// through the model picker command
@@ -162,8 +162,6 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 
 	return { currentToken: contextToken, currentModel: chatModel };
 }
-
-export function deactivate() { }
 
 export function getModel(): ChatModel {
 	const config = vscode.workspace.getConfiguration();
@@ -210,7 +208,7 @@ export function subscribe(context: vscode.ExtensionContext) {
 		// Prompt the user to enter a label
 		const inputModel = await vscode.window.showInputBox({
 			placeHolder: chatModel.model ? vscode.l10n.t(`Current Model: ${chatModel.model}`) : vscode.l10n.t('Enter a model'),
-			prompt: vscode.l10n.t('Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.') 
+			prompt: vscode.l10n.t('Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.')
 		});
 
 		if (!inputModel) {
@@ -222,8 +220,6 @@ export function subscribe(context: vscode.ExtensionContext) {
 		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
 		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
 	}));
-
-	context.subscriptions.push(...registerHtmlPreviewCommands());
 
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
 		const query = '@vision troubleshoot my VS Code setup, as pictured.';
@@ -237,4 +233,4 @@ export function subscribe(context: vscode.ExtensionContext) {
 	);
 }
 
-
+export function deactivate() { }
