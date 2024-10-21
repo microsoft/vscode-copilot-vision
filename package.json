@@ -38,7 +38,7 @@
 	],
 	"activationEvents": [
 		"onLanguage:markdown",
-		"onLanguage:tsx",
+		"onLanguage:typescriptreact",
 		"onLanguage:html"
 	],
 	"contributes": {

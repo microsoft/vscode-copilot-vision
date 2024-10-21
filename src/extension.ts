@@ -231,7 +231,7 @@ export function subscribe(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(
-		vscode.languages.registerCodeActionsProvider('markdown', new AltTextQuickFixProvider(context), {
+		vscode.languages.registerCodeActionsProvider(['markdown', 'typescriptreact', 'html'], new AltTextQuickFixProvider(context), {
 			providedCodeActionKinds: AltTextQuickFixProvider.providedCodeActionKinds
 		})
 	);
