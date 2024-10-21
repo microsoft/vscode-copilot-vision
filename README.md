@@ -2,7 +2,10 @@
 
 Vision for Copilot Preview is an extension that enhances chat interactions by enabling users to leverage advanced vision capabilities. This preview feature allows users to attach images directly as contextual input, enriching conversations and enabling more dynamic, visually-supported responses. This extension will be deprecated in favor of built-in image flow in Github Copilot Chat. 
 
-For now, users can experience the image attachment flow by using their own OpenAI, Anthropic, or Gemini keys. Get started by easily attaching images from the clipboard or dragging them directly into the chat. Additionally, users can generate alt text for images in markdown with the provided code action, simplifying the process of incorporating descriptive text for better context and accessibility.
+For now, users can experience the image attachment flow by using their own OpenAI, Anthropic, or Gemini keys. Get started by easily attaching images from the clipboard or dragging them directly into the chat. 
+
+Additionally, users can generate or refine alt text for images in markdown documents with the provided code actions, simplifying the process of incorporating descriptive text for better context and accessibility.
+![An example markdown document displays a quick fix feature for generating alt text, resulting in the automatic insertion of an alt tag and a value. The user is then prompted with a different quick fix to refine the alt text using an input box. After the user enters and submits their refined description, the alt text is updated accordingly.](https://raw.githubusercontent.com/microsoft/vscode-copilot-vision/refs/heads/main/assets/demo-alt-text.gif)
 
 ## Contributed Commands and Settings
 ### Commands
@@ -62,9 +65,9 @@ When an extension uses the Chat or the Language Model API, we call it a GitHub C
 This GitHub Copilot Extension sample shows:
 
 - How to contribute a chat participant to the GitHub Copilot Chat view.
-- How to use the proposed API (https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.chatReferenceBinaryData.d.ts) to get image data from the chat request. 
+- How to use the [proposed API](https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.chatReferenceBinaryData.d.ts) to get image data from the chat request. 
 
-![Screenshot of a chat exchange. A user asks for HTML and CSS for a landing page. The response provides a basic HTML structure with a header, navigation links (Home, About, Contact), and a link to an external CSS file.](./assets/demo.gif)
+![Screenshot of a chat exchange. A user asks for HTML and CSS for a landing page. The response provides a basic HTML structure with a header, navigation links (Home, About, Contact), and a link to an external CSS file.](https://raw.githubusercontent.com/microsoft/vscode-copilot-vision/refs/heads/main/assets/demo.gif)
 
 Documentation can be found here:
 - https://code.visualstudio.com/api/extension-guides/chat
