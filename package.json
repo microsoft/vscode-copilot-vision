@@ -70,7 +70,21 @@
 				"name": "vision",
 				"description": "Attach an image to get started!",
 				"isSticky": false,
-				"commands": []
+				"commands": [],
+				"disambiguation": [
+					{
+						"category": "vision",
+						"description": "The user wants to know more about an image.",
+						"examples": [
+							"Tell me about this image.",
+							"What do I see?",
+							"What does this look like?",
+							"Describe this image.",
+							"Can you help me understand this image?",
+							"What is shown here?"
+						]
+					}
+				]
 			}
 		],
 		"codeActions": [
