@@ -58,31 +58,35 @@ export class BaseAuth {
 		});
 
 		input.show();
-		const key: string = await new Promise((resolve, reject) => {
-			const disposable = input.onDidAccept(async () => {
-				input.busy = true;
-				input.enabled = false;
-				if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
-					input.validationMessage = l10n.t('Invalid API key');
-					input.busy = false;
-					input.enabled = true;
-					return;
-				}
-				resolve(input.value);
-				disposable.dispose();
-				input.hide();
-			});
-
-			const hideDisposable = input.onDidHide(async () => {
-				if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
+		try {
+			const key: string = await new Promise((resolve, reject) => {
+				const disposable = input.onDidAccept(async () => {
+					input.busy = true;
+					input.enabled = false;
+					if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
+						input.validationMessage = l10n.t('Invalid API key');
+						input.busy = false;
+						input.enabled = true;
+						return;
+					}
+					resolve(input.value);
 					disposable.dispose();
-					hideDisposable.dispose();
-					reject(new Error('API key was not set.'));
-				}
-			});
-		});
+					input.hide();
+				});
 
-		context.secrets.store(name, key);
+				const hideDisposable = input.onDidHide(async () => {
+					if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
+						disposable.dispose();
+						hideDisposable.dispose();
+						reject(new Error('API key is not set.'));
+					}
+				});
+			});
+			
+			context.secrets.store(name, key);
+		} catch (e) {
+			console.error(e);
+		}
 	}
 
 	async deleteKey(name: string, context: ExtensionContext): Promise<void> {

@@ -157,7 +157,7 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 	}
 
 	if (!contextToken) {
-		throw new Error('API key is not set.');
+		throw new Error('API key was not properly set');
 	}
 
 	return { currentToken: contextToken, currentModel: chatModel };
