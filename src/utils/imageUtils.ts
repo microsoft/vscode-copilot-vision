@@ -25,12 +25,12 @@ export function extractImageAttributes(line: string, refineExisting?: boolean): 
 		isHTML = false;
 
 		// If refineExisting is true, ensure altText already exists
-		if (refineExisting && !altText) {
+		if (refineExisting && (!altText || altText === 'alt text')) {
 			return undefined;
 		}
 
 		// If refineExisting is false, ensure altText does not exist
-		if (!refineExisting && altText) {
+		if (!refineExisting && (altText && altText !== 'alt text')) {
 			return undefined;
 		}
 
