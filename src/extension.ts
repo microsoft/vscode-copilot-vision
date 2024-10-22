@@ -200,25 +200,31 @@ export function subscribe(context: vscode.ExtensionContext) {
 		});
 
 		if (!selectedModel) {
+			// if quit out, it will not change the setting for provider nor model.
 			return;
 		}
 
 		const chatModel = getModel();
 
 		// Prompt the user to enter a label
-		const inputModel = await vscode.window.showInputBox({
+		let inputModel = await vscode.window.showInputBox({
 			placeHolder: chatModel.model ? vscode.l10n.t(`Current Model: ${chatModel.model}`) : vscode.l10n.t('Enter a model'),
 			prompt: vscode.l10n.t('Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.')
 		});
 
 		if (!inputModel) {
-			return;
+			inputModel = chatModel.model;
 		}
 
 		// Update the configuration settings
 		const config = vscode.workspace.getConfiguration();
 		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
 		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
+
+		const currentKey = await context.secrets.get(selectedModel.label);
+		if (!currentKey) {
+			await vscode.commands.executeCommand('copilot.vision.setApiKey');
+		}
 	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
