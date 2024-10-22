@@ -37,8 +37,7 @@ export async function generateAltText(model: ChatModel, apiKey: string, imagePat
 	let query = 'Generate concise alt text for this image, focusing on key elements while omitting unnecessary visual details, such as colors. Do not include single or double quotes in the alt text.';
 	if (type === 'refine') {
 		const userQuery = await vscode.window.showInputBox({
-			placeHolder: 'Instructions for the alt text generation',
-			prompt: 'Specify information about the alt text you want for the image or hit enter to regenerate.'
+			placeHolder: '(Optional) Specify information about the alt text you want for the image.',
 		});
 
 		query = `${query} ${userQuery}`;
