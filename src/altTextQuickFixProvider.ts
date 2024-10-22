@@ -88,14 +88,19 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			codeAction.edit = new vscode.WorkspaceEdit();
 			const edit = new vscode.WorkspaceEdit();
 			if (codeAction.isHtml) {
-				let addedTagIndex = 0;
+				let additionalCharsToRemove = 0;
 				if (!codeAction.currentLine.includes('alt=')) {
 					altText = `img alt="${altText}"`;
-					addedTagIndex = 3;
+					additionalCharsToRemove = 3;
 				}
-				edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + addedTagIndex), altText);
+				edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + additionalCharsToRemove), altText);
 			} else {
-				edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);
+				const isBoilerplate = codeAction.currentLine.includes('![alt text]');
+				if (isBoilerplate) {
+					edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + 8), altText);
+				} else {
+					edit.insert(codeAction.document.uri, new vscode.Position(codeAction.range.start.line, codeAction.altTextStartIndex), altText);
+				}
 			}
 			codeAction.edit = edit;
 			return codeAction;
