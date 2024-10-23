@@ -15,7 +15,7 @@ export async function getBufferAndMimeTypeFromUri(uri: vscode.Uri): Promise<{ bu
 	}
 
 	const buffer = Buffer.from(await vscode.workspace.fs.readFile(uri));
-	const mimeType = getMimeType(fileExtension)
+	const mimeType = getMimeType(fileExtension);
 	return { buffer, mimeType };
 }
 
