@@ -203,10 +203,11 @@ export function subscribe(context: vscode.ExtensionContext) {
 			// if quit out, it will not change the setting for provider nor model.
 			return;
 		}
+		const config = vscode.workspace.getConfiguration();
+		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
 
 		const chatModel = getModel();
 		const auth = new BaseAuth();
-		const config = vscode.workspace.getConfiguration();
 		
 		const input = vscode.window.createInputBox();
 		input.title = vscode.l10n.t('Set {0} Model', selectedModel.label);
@@ -242,14 +243,13 @@ export function subscribe(context: vscode.ExtensionContext) {
 					if (!input.value || (currentKey && !(await auth.validateKey(currentKey)))) {
 						disposable.dispose();
 						hideDisposable.dispose();
-						return chatModel.model;
+						resolve(chatModel.model);
 					}
 				});
 			});
 
 			if (!currentKey) {
-				await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
-				await config.update('copilot.vision.model', key, vscode.ConfigurationTarget.Global);
+				await config.update('copilot.vision.model', key || chatModel.model, vscode.ConfigurationTarget.Global);
 				await vscode.commands.executeCommand('copilot.vision.setApiKey');
 			}
 		} catch (e) {
