@@ -20,19 +20,21 @@ export class BaseAuth {
 		this._disposable = new Disposable(() => {});
 	}
 
-	async validateKey(key: string, providerType: ProviderType): Promise<boolean> {
+	async validateKey(key: string, inputModel?: string): Promise<boolean> {
 		try {
-			const api = getApi(providerType);
 			const config = workspace.getConfiguration();
 			const model = config.get<string>('copilot.vision.model');
-			
-			if (!model) {
+			const provider = config.get<ProviderType>('copilot.vision.provider');
+		
+			if (!model || !provider) {
 				throw new Error('Invalid Model');
 			}
 
+			const api = getApi(provider);
+
 			const ChatModel = {
-				provider: providerType,
-				model
+				provider,
+				model: inputModel || model,
 			};
 
 			const result = await api.create(key, 'test', ChatModel, [], 'image/png');
@@ -63,7 +65,7 @@ export class BaseAuth {
 				const disposable = input.onDidAccept(async () => {
 					input.busy = true;
 					input.enabled = false;
-					if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
+					if (!input.value || !(await this.validateKey(input.value))) {
 						input.validationMessage = l10n.t('Invalid API key');
 						input.busy = false;
 						input.enabled = true;
@@ -75,7 +77,7 @@ export class BaseAuth {
 				});
 
 				const hideDisposable = input.onDidHide(async () => {
-					if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
+					if (!input.value || !(await this.validateKey(input.value))) {
 						disposable.dispose();
 						hideDisposable.dispose();
 						reject(new Error('API key is not set.'));

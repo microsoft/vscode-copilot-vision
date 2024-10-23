@@ -203,27 +203,57 @@ export function subscribe(context: vscode.ExtensionContext) {
 			// if quit out, it will not change the setting for provider nor model.
 			return;
 		}
-
-		const chatModel = getModel();
-
-		// Prompt the user to enter a label
-		let inputModel = await vscode.window.showInputBox({
-			placeHolder: chatModel.model ? vscode.l10n.t(`Current Model: ${chatModel.model}`) : vscode.l10n.t('Enter a model'),
-			prompt: vscode.l10n.t('Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.')
-		});
-
-		if (!inputModel) {
-			inputModel = chatModel.model;
-		}
-
-		// Update the configuration settings
 		const config = vscode.workspace.getConfiguration();
 		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
-		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
 
+		const chatModel = getModel();
+		const auth = new BaseAuth();
+		
+		const input = vscode.window.createInputBox();
+		input.title = vscode.l10n.t('Set {0} Model', selectedModel.label);
+
+		// Get Model
+		input.placeholder = chatModel.model ? vscode.l10n.t(`Current Model: ${chatModel.model}`) : vscode.l10n.t('Enter a model');
+		input.ignoreFocusOut = true;
+		input.prompt = vscode.l10n.t('Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.');
+		input.onDidChangeValue((value) => {
+			input.validationMessage = undefined;
+		});
+
+		input.show();
 		const currentKey = await context.secrets.get(selectedModel.label);
-		if (!currentKey) {
-			await vscode.commands.executeCommand('copilot.vision.setApiKey');
+	
+		try {
+			const key: string = await new Promise((resolve, reject) => {
+				const disposable = input.onDidAccept(async () => {
+					input.busy = true;
+					input.enabled = false;
+					if (currentKey && !(await auth.validateKey(currentKey, input.value))) {
+						input.validationMessage = vscode.l10n.t('Invalid Model');
+						input.busy = false;
+						input.enabled = true;
+						return;
+					}
+					resolve(input.value);
+					disposable.dispose();
+					input.hide();
+				});
+
+				const hideDisposable = input.onDidHide(async () => {
+					if (!input.value || (currentKey && !(await auth.validateKey(currentKey)))) {
+						disposable.dispose();
+						hideDisposable.dispose();
+						resolve(chatModel.model);
+					}
+				});
+			});
+
+			if (!currentKey) {
+				await config.update('copilot.vision.model', key || chatModel.model, vscode.ConfigurationTarget.Global);
+				await vscode.commands.executeCommand('copilot.vision.setApiKey');
+			}
+		} catch (e) {
+			console.error(e);
 		}
 	}));
 
