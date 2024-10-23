@@ -248,8 +248,8 @@ export function subscribe(context: vscode.ExtensionContext) {
 				});
 			});
 
+			await config.update('copilot.vision.model', key || chatModel.model, vscode.ConfigurationTarget.Global);
 			if (!currentKey) {
-				await config.update('copilot.vision.model', key || chatModel.model, vscode.ConfigurationTarget.Global);
 				await vscode.commands.executeCommand('copilot.vision.setApiKey');
 			}
 		} catch (e) {
