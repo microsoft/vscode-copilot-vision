@@ -55,6 +55,16 @@ describe('Alt text quick fixes: extractImageInfo', () => {
 				assert.equal(isHTML, false);
 				assert.equal(altTextLength, 8);
 			});
+			it('Markdown Image syntax, with space in image path', () => {
+				const markdownImage = '![alt text](<path to image.png>)';
+				const match = extractImageAttributes(markdownImage, refineExisting);
+				assert(match);
+				const { imagePath, altTextStartIndex, isHTML, altTextLength } = match;
+				assert.equal(imagePath, 'path to image.png');
+				assert.equal(altTextStartIndex, 2);
+				assert.equal(isHTML, false);
+				assert.equal(altTextLength, 8);
+			});
 		});
 		describe('Alt text exists: should return undefined', () => {
 			it('Markdown Image syntax', () => {
@@ -123,7 +133,16 @@ describe('Alt text quick fixes: extractImageInfo', () => {
 				assert.equal(isHTML, false);
 				assert.equal(altTextLength, 9);
 			});
-
+			it('Markdown Image syntax, space in image path', () => {
+				const markdownImageWithAlt = '![some word](<path to image.png>)';
+				const match = extractImageAttributes(markdownImageWithAlt, refineExisting);
+				assert(match);
+				const { imagePath, altTextStartIndex, isHTML, altTextLength } = match;
+				assert.equal(imagePath, 'path to image.png');
+				assert.equal(altTextStartIndex, 2);
+				assert.equal(isHTML, false);
+				assert.equal(altTextLength, 9);
+			});
 			it('HTML Image syntax, alt before source', () => {
 				const htmlImage = '<img alt="hi" src="path/to/image.png" />';
 				const match = extractImageAttributes(htmlImage, refineExisting);
