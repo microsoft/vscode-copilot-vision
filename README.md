@@ -7,7 +7,7 @@ For now, users can experience the image attachment flow in the chat panel by usi
 ![Screenshot of a chat exchange. A user asks for HTML and CSS for a landing page. The response provides a basic HTML structure with a header, navigation links (Home, About, Contact), and a link to an external CSS file.](https://raw.githubusercontent.com/microsoft/vscode-copilot-vision/refs/heads/main/assets/demo.gif)
 
 ### Quick Fixes
-Additionally, users can generate or refine alt text for images in markdown, HTML, JSX, or TSX documents with the provided code actions, simplifying the process of incorporating descriptive text for better context and accessibility.
+Additionally, users can generate or refine alt text for images in markdown, HTML, JSX, or TSX documents with the provided code actions, simplifying the process of incorporating descriptive text for better context and accessibility. Alt text quick fixes work for images in the workspace and with any image URLs. 
 
 ![An example markdown document displays a quick fix feature for generating alt text, resulting in the automatic insertion of an alt tag and a value. The user is then prompted with a different quick fix to refine the alt text using an input box. After the user enters and submits their refined description, the alt text is updated accordingly.](https://raw.githubusercontent.com/microsoft/vscode-copilot-vision/refs/heads/main/assets/demo-alt-text.gif)
 
@@ -23,7 +23,7 @@ Additionally, users can generate or refine alt text for images in markdown, HTML
 - `copilot.vision.model`: The model for the currently selected provider.
 
 
-# How do I attach images?
+# How do I attach images to the chat panel?
 1. Copy and Paste an image from the clipboard.
 2. With an image in the clipboard, select the `Attach Context` button and select `Image from Clipboard` from the quick pick.
 3. Click the `Attach Context` button and select an image in the workspace or `Screenshot Window`.
