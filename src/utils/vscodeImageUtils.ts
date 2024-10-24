@@ -15,7 +15,7 @@ export async function getBufferAndMimeTypeFromUri(uri: vscode.Uri): Promise<{ bu
 	}
 
 	const buffer = Buffer.from(await vscode.workspace.fs.readFile(uri));
-	const mimeType = getMimeType(fileExtension)
+	const mimeType = getMimeType(fileExtension);
 	return { buffer, mimeType };
 }
 
@@ -27,22 +27,38 @@ function getMimeType(ext: string) {
 }
 
 
-export async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml: boolean, type: 'concise' | 'refine', refineResult: boolean): Promise<string | undefined> {
+export async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml: boolean, type: 'concise' | 'refine', refineResult: boolean, isUrl?: boolean): Promise<string | undefined> {
+	let query = 'Generate concise alt text for this image, focusing on key elements while omitting unnecessary visual details, such as colors. Do not include single or double quotes in the alt text.';
+	if (type === 'refine') {
+		const userQuery = await vscode.window.showInputBox({
+			placeHolder: '(Optional) Specify information about the alt text you want for the image.',
+		});
+
+		query = `${query} ${userQuery}`;
+	}
+
+	if (isUrl) {
+		try {
+			const api = getApi(model.provider);
+			const altText = (await api.create(
+				apiKey,
+				query,
+				model,
+				[],
+				'image/png', isUrl, imagePath)).join(' ');
+
+			return altText;
+		} catch (err: unknown) {
+			return;
+		}
+	}
+
 	const uri = vscode.Uri.file(imagePath);
 	const result = await getBufferAndMimeTypeFromUri(uri);
 	if (!result) {
 		return;
 	}
 	const { buffer, mimeType } = result;
-	let query = 'Generate concise alt text for this image, focusing on key elements while omitting unnecessary visual details, such as colors. Do not include single or double quotes in the alt text.';
-	if (type === 'refine') {
-		const userQuery = await vscode.window.showInputBox({
-			placeHolder: 'Instructions for the alt text generation',
-			prompt: 'Specify information about the alt text you want for the image or hit enter to regenerate.'
-		});
-
-		query = `${query} ${userQuery}`;
-	}
 	try {
 		const api = getApi(model.provider);
 		const altText = (await api.create(

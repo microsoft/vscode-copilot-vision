@@ -5,8 +5,6 @@
 
 import * as dotenv from 'dotenv';
 import * as vscode from 'vscode';
-import path from 'path';
-import { registerHtmlPreviewCommands } from './htmlPreview';
 import { getBufferAndMimeTypeFromUri } from './utils/vscodeImageUtils';
 import { AltTextQuickFixProvider } from './altTextQuickFixProvider';
 import { getApi } from './apiFacade';
@@ -138,6 +136,8 @@ function handleError(logger: vscode.TelemetryLogger, err: any, stream: vscode.Ch
 	}
 }
 
+
+// Helper Functions
 export async function initializeModelAndToken(stream?: vscode.ChatResponseStream, context?: vscode.ExtensionContext): Promise<{ currentToken: string | undefined, currentModel: ChatModel | undefined }> {
 	// Default to Azure Open AI, only use a different model if one is selected explicitly
 	// through the model picker command
@@ -157,13 +157,11 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 	}
 
 	if (!contextToken) {
-		throw new Error('API key is not set.');
+		throw new Error('API key was not properly set');
 	}
 
 	return { currentToken: contextToken, currentModel: chatModel };
 }
-
-export function deactivate() { }
 
 export function getModel(): ChatModel {
 	const config = vscode.workspace.getConfiguration();
@@ -202,28 +200,62 @@ export function subscribe(context: vscode.ExtensionContext) {
 		});
 
 		if (!selectedModel) {
+			// if quit out, it will not change the setting for provider nor model.
 			return;
 		}
-
-		const chatModel = getModel();
-
-		// Prompt the user to enter a label
-		const inputModel = await vscode.window.showInputBox({
-			placeHolder: chatModel.model ? vscode.l10n.t(`Current Model: ${chatModel.model}`) : vscode.l10n.t('Enter a model'),
-			prompt: vscode.l10n.t('Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.') 
-		});
-
-		if (!inputModel) {
-			return;
-		}
-
-		// Update the configuration settings
 		const config = vscode.workspace.getConfiguration();
 		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
-		await config.update('copilot.vision.model', inputModel, vscode.ConfigurationTarget.Global);
-	}));
 
-	context.subscriptions.push(...registerHtmlPreviewCommands());
+		const chatModel = getModel();
+		const auth = new BaseAuth();
+		
+		const input = vscode.window.createInputBox();
+		input.title = vscode.l10n.t('Set {0} Model', selectedModel.label);
+
+		// Get Model
+		input.placeholder = chatModel.model ? vscode.l10n.t(`Current Model: ${chatModel.model}`) : vscode.l10n.t('Enter a model');
+		input.ignoreFocusOut = true;
+		input.prompt = vscode.l10n.t('Please enter a model for the selected provider. Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-flash`.');
+		input.onDidChangeValue((value) => {
+			input.validationMessage = undefined;
+		});
+
+		input.show();
+		const currentKey = await context.secrets.get(selectedModel.label);
+	
+		try {
+			const key: string = await new Promise((resolve, reject) => {
+				const disposable = input.onDidAccept(async () => {
+					input.busy = true;
+					input.enabled = false;
+					if (currentKey && !(await auth.validateKey(currentKey, input.value))) {
+						input.validationMessage = vscode.l10n.t('Invalid Model');
+						input.busy = false;
+						input.enabled = true;
+						return;
+					}
+					resolve(input.value);
+					disposable.dispose();
+					input.hide();
+				});
+
+				const hideDisposable = input.onDidHide(async () => {
+					if (!input.value || (currentKey && !(await auth.validateKey(currentKey)))) {
+						disposable.dispose();
+						hideDisposable.dispose();
+						resolve(chatModel.model);
+					}
+				});
+			});
+
+			await config.update('copilot.vision.model', key || chatModel.model, vscode.ConfigurationTarget.Global);
+			if (!currentKey) {
+				await vscode.commands.executeCommand('copilot.vision.setApiKey');
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
 		const query = '@vision troubleshoot my VS Code setup, as pictured.';
@@ -237,4 +269,4 @@ export function subscribe(context: vscode.ExtensionContext) {
 	);
 }
 
-
+export function deactivate() { }

@@ -20,19 +20,21 @@ export class BaseAuth {
 		this._disposable = new Disposable(() => {});
 	}
 
-	async validateKey(key: string, providerType: ProviderType): Promise<boolean> {
+	async validateKey(key: string, inputModel?: string): Promise<boolean> {
 		try {
-			const api = getApi(providerType);
 			const config = workspace.getConfiguration();
 			const model = config.get<string>('copilot.vision.model');
-			
-			if (!model) {
+			const provider = config.get<ProviderType>('copilot.vision.provider');
+		
+			if (!model || !provider) {
 				throw new Error('Invalid Model');
 			}
 
+			const api = getApi(provider);
+
 			const ChatModel = {
-				provider: providerType,
-				model
+				provider,
+				model: inputModel || model,
 			};
 
 			const result = await api.create(key, 'test', ChatModel, [], 'image/png');
@@ -58,31 +60,35 @@ export class BaseAuth {
 		});
 
 		input.show();
-		const key: string = await new Promise((resolve, reject) => {
-			const disposable = input.onDidAccept(async () => {
-				input.busy = true;
-				input.enabled = false;
-				if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
-					input.validationMessage = l10n.t('Invalid API key');
-					input.busy = false;
-					input.enabled = true;
-					return;
-				}
-				resolve(input.value);
-				disposable.dispose();
-				input.hide();
-			});
-
-			const hideDisposable = input.onDidHide(async () => {
-				if (!input.value || !(await this.validateKey(input.value, name as ProviderType))) {
+		try {
+			const key: string = await new Promise((resolve, reject) => {
+				const disposable = input.onDidAccept(async () => {
+					input.busy = true;
+					input.enabled = false;
+					if (!input.value || !(await this.validateKey(input.value))) {
+						input.validationMessage = l10n.t('Invalid API key');
+						input.busy = false;
+						input.enabled = true;
+						return;
+					}
+					resolve(input.value);
 					disposable.dispose();
-					hideDisposable.dispose();
-					reject(new Error('API key was not set.'));
-				}
-			});
-		});
+					input.hide();
+				});
 
-		context.secrets.store(name, key);
+				const hideDisposable = input.onDidHide(async () => {
+					if (!input.value || !(await this.validateKey(input.value))) {
+						disposable.dispose();
+						hideDisposable.dispose();
+						reject(new Error('API key is not set.'));
+					}
+				});
+			});
+			
+			context.secrets.store(name, key);
+		} catch (e) {
+			console.error(e);
+		}
 	}
 
 	async deleteKey(name: string, context: ExtensionContext): Promise<void> {

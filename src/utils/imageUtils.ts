@@ -4,8 +4,8 @@
  *--------------------------------------------------------------------------------------------*/
 
 export function extractImageAttributes(line: string, refineExisting?: boolean): { imagePath: string, altTextStartIndex: number, isHTML: boolean, altTextLength: number } | undefined {
-	// Regex to match markdown image syntax ![alt text](image_path)
-	const markdownImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/;
+	// Regex to match markdown image syntax ![alt text](<?image_path>?)
+	const markdownImageRegex = /!\[([^\]]*)\]\(<?([^)<>]+?)>?\)/;
 	// Updated regex to match HTML image syntax with alt and src in any order
 	const htmlImageRegex = /<img\s+(?:alt=["']([^"']*)["']\s*)?src=["']([^"']+)["'](?:\s*alt=["']([^"']*)["'])?/;
 
@@ -25,12 +25,12 @@ export function extractImageAttributes(line: string, refineExisting?: boolean): 
 		isHTML = false;
 
 		// If refineExisting is true, ensure altText already exists
-		if (refineExisting && !altText) {
+		if (refineExisting && (!altText || altText === 'alt text')) {
 			return undefined;
 		}
 
 		// If refineExisting is false, ensure altText does not exist
-		if (!refineExisting && altText) {
+		if (!refineExisting && (altText && altText !== 'alt text')) {
 			return undefined;
 		}
 
