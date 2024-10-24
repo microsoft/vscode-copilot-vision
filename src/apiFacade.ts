@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import * as vscode from 'vscode';
 import Anthropic from "@anthropic-ai/sdk";
 import { ContentBlock } from "@anthropic-ai/sdk/resources/messages.mjs";
 import { TextBlockParam, ImageBlockParam, TextBlock } from "@anthropic-ai/sdk/src/resources/messages.js";
@@ -12,17 +13,22 @@ import type { ChatCompletionContentPart, ChatCompletionUserMessageParam } from "
 import { ChatModel, ProviderType } from "./extension";
 
 export interface ApiFacade {
-	create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]>;
+	create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean, url?: string): Promise<string[]>;
 }
 
 export class AnthropicApi implements ApiFacade {
-	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]> {
+	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean): Promise<string[]> {
 		try {
 			const client = new Anthropic({ apiKey: apiKey });
 
 			const prompts: Array<TextBlockParam | ImageBlockParam> = [
 				{ type: 'text', text: request },
 			];
+
+			if (isUrl) {
+				console.error('URLs are currently not supported by Anthropic');
+				vscode.window.showWarningMessage('URLs are currently not supported by Anthropic');
+			}
 
 			for (const data of content) {
 				const base64 = data.toString('base64');
@@ -44,7 +50,7 @@ export class AnthropicApi implements ApiFacade {
 }
 
 export class OpenAIApi implements ApiFacade {
-	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]> {
+	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean, url?: string): Promise<string[]> {
 		try {
 			if (apiKey === undefined) {
 				return ['Please provide a valid Open AI token.'];
@@ -53,6 +59,10 @@ export class OpenAIApi implements ApiFacade {
 			const prompts: ChatCompletionContentPart[] = [
 				{ type: 'text', text: request },
 			];
+
+			if (isUrl && url) {
+				prompts.push({type: 'image_url', image_url: { url } });
+			}
 
 			for (const data of content) {
 				const base64 = data.toString('base64');
@@ -87,7 +97,7 @@ export class OpenAIApi implements ApiFacade {
 }
 
 export class GeminiApi implements ApiFacade {
-	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]> {
+	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean): Promise<string[]> {
 		try {
 			function getFilePart(buffer: Buffer) {
 				return {
@@ -97,6 +107,11 @@ export class GeminiApi implements ApiFacade {
 
 			// for multiple images
 			const imageParts = [];
+
+			if (isUrl) {
+				console.error('URLs are currently not supported by Gemini');
+				vscode.window.showWarningMessage('URLs are currently not supported by Gemini');
+			}
 
 			for (const data of content) {
 				imageParts.push(getFilePart(data));
@@ -120,7 +135,7 @@ export class GeminiApi implements ApiFacade {
 }
 
 export class AzureOpenAIApi implements ApiFacade {
-	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string): Promise<string[]> {
+	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean, url?: string): Promise<string[]> {
 		try {
 			// EXAMPLE OF USING AZURE OPENAI
 			const endpoint = process.env["AZURE_ENDPOINT"] || "https://vscode-openai.openai.azure.com/";
@@ -131,6 +146,10 @@ export class AzureOpenAIApi implements ApiFacade {
 			const prompts: ChatCompletionUserMessageParam[] = [
 				{ role: 'user', content: request },
 			];
+
+			if (isUrl && url) {
+				prompts.push({ role: 'user', content: [{ type: 'image_url', image_url: { url } }] });
+			}
 
 			for (const data of content) {
 				const base64 = data.toString('base64');

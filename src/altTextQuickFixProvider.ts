@@ -19,6 +19,7 @@ interface ImageCodeAction extends vscode.CodeAction {
 	altTextLength: number;
 	type: 'generate' | 'refine';
 	isAI: boolean;
+	isUrl?: boolean;
 }
 
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
@@ -37,7 +38,8 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		}
 
 		if (shouldGenerate) {
-			const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), shouldGenerate.imagePath);
+			const isUrl = isValidUrl(shouldGenerate.imagePath);
+			const resolvedImagePath = isUrl ? shouldGenerate.imagePath : path.resolve(path.dirname(document.uri.fsPath), shouldGenerate.imagePath);
 			return [{
 				title: vscode.l10n.t('Generate alt text'),
 				kind: vscode.CodeActionKind.QuickFix,
@@ -49,10 +51,12 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 				currentLine,
 				type: 'generate',
 				altTextLength: shouldGenerate.altTextLength,
-				isAI: true
+				isAI: true,
+				isUrl
 			}];
 		} else if (shouldRefineExisting) {
-			const resolvedImagePath = path.resolve(path.dirname(document.uri.fsPath), shouldRefineExisting.imagePath);
+			const isUrl = isValidUrl(shouldRefineExisting.imagePath);
+			const resolvedImagePath = isUrl ? shouldRefineExisting.imagePath : path.resolve(path.dirname(document.uri.fsPath), shouldRefineExisting.imagePath);
 			return [{
 				title: vscode.l10n.t('Refine alt text'),
 				kind: vscode.CodeActionKind.QuickFix,
@@ -64,7 +68,8 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 				currentLine,
 				type: 'refine',
 				altTextLength: shouldRefineExisting.altTextLength,
-				isAI: true
+				isAI: true,
+				isUrl
 			}];
 		}
 	}
@@ -81,7 +86,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		}
 
 		if (codeAction.type === 'generate') {
-			let altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', false);
+			let altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', false, codeAction.isUrl);
 			if (!altText) {
 				return;
 			}
@@ -105,7 +110,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			codeAction.edit = edit;
 			return codeAction;
 		} else if (codeAction.type === 'refine') {
-			const altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'refine', true);
+			const altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'refine', true, codeAction.isUrl);
 
 			if (!altText) {
 				return;
@@ -114,5 +119,14 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			edit.replace(codeAction.document.uri, new vscode.Range(codeAction.range.start.line, codeAction.altTextStartIndex, codeAction.range.start.line, codeAction.altTextStartIndex + codeAction.altTextLength), altText);
 			await vscode.workspace.applyEdit(edit);
 		}
+	}
+}
+
+export function isValidUrl(imagePath: string): boolean {
+	try {
+		new URL(imagePath);
+		return true;
+	} catch (e) {
+		return false;
 	}
 }
