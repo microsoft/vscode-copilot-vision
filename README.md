@@ -22,6 +22,8 @@ Additionally, users can generate or refine alt text for images in markdown, HTML
 - `copilot.vision.provider`: The selected provider (currently limted to OpenAI, Anthropic, and Gemini).
 - `copilot.vision.model`: The model for the currently selected provider.
 
+### Notes
+- For each of the providers, users may be required to have credit in their respective accounts already, or the API key will be invalid. 
 
 # How do I attach images to the chat panel?
 1. Copy and Paste an image from the clipboard.
