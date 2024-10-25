@@ -68,7 +68,7 @@
 				"id": "chat-sample.vision",
 				"fullName": "Vision",
 				"name": "vision",
-				"description": "Attach an image to get started!",
+				"description": "Drop or paste an image to get started!",
 				"isSticky": false,
 				"commands": [],
 				"disambiguation": [
