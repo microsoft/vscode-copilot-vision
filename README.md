@@ -24,7 +24,7 @@ Additionally, users can generate or refine alt text for images in markdown, HTML
 
 ### Notes
 - For each of the providers, users may be required to have credit in their respective accounts already, or the API key will be invalid.
-- Individuals outisde of the VS Code team will be unable to use Azure Open AI since we do not use a generic Azure Open AI endpoint.
+- Individuals outside of the VS Code team will be unable to use Azure OpenAI since we do not use a generic Azure OpenAI endpoint.
 
 # How do I attach images to the chat panel?
 1. Copy and Paste an image from the clipboard.
