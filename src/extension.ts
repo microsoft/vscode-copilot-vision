@@ -32,6 +32,8 @@ interface IVisionChatResult extends vscode.ChatResult {
 	}
 }
 
+const troubleshootQuery = "troubleshoot my VS Code setup, as pictured.";
+
 export async function activate(context: vscode.ExtensionContext) {
 	subscribe(context);
 
@@ -77,7 +79,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		try {
 			const api = getApi(currentModel.provider);
-			const result = await api.create(currentToken, request.prompt, currentModel, base64Strings, mimeType);
+			let prompt = request.prompt;
+			if (prompt === troubleshootQuery) {
+				// HACK: To do, check screen reader optimized vs beginner
+				prompt += ' Tailor the response to screen reader users.';
+			}
+			const result = await api.create(currentToken, prompt, currentModel, base64Strings, mimeType);
 			for (const message of result) {
 				stream.markdown(vscode.l10n.t(message));
 			}
@@ -256,9 +263,8 @@ export function subscribe(context: vscode.ExtensionContext) {
 			console.error(e);
 		}
 	}));
-
 	context.subscriptions.push(vscode.commands.registerCommand('copilot.vision.troubleshoot', async () => {
-		const query = '@vision troubleshoot my VS Code setup, as pictured.';
+		const query = '@vision ' + troubleshootQuery;
 		await vscode.commands.executeCommand('workbench.action.chat.open', { query, attachScreenshot: true });
 	}));
 
