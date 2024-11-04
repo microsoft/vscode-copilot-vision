@@ -138,7 +138,13 @@ export class AzureOpenAIApi implements ApiFacade {
 	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean, url?: string): Promise<string[]> {
 		try {
 			// EXAMPLE OF USING AZURE OPENAI
-			const endpoint = process.env["AZURE_ENDPOINT"] || "https://vscode-openai.openai.azure.com/";
+			const config = vscode.workspace.getConfiguration();
+			const endpoint = config.get<string>('copilot.vision.azureEndpoint');
+			if (!endpoint) {
+				console.error('Please provide a valid Azure Open AI endpoint');
+				return ['Please provide a valid Azure Open AI endpoint via the Copilot Vision: Select Provider and Model Command.']; 
+				
+			}
 			const apiVersion = "2024-08-01-preview";
 			const model = provider.model; // gpt-4o-mini or Gpt4
 			const client = new AzureOpenAI({ endpoint, apiVersion, deployment: model, apiKey });
