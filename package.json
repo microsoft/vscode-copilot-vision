@@ -56,6 +56,11 @@
 					"default": "OpenAI",
 					"description": "The selected provider."
 				},
+				"copilot.vision.azureEndpoint": {
+					"type": "string",
+					"default": "",
+					"description": "An endpoint specifically for Azure OpenAI."
+				},
 				"copilot.vision.model": {
 					"type": "string",
 					"default": "gpt-4o",

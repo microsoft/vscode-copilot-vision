@@ -213,9 +213,26 @@ export function subscribe(context: vscode.ExtensionContext) {
 		const config = vscode.workspace.getConfiguration();
 		await config.update('copilot.vision.provider', selectedModel.label, vscode.ConfigurationTarget.Global);
 
+		if (selectedModel.label === ProviderType.AzureOpenAI) {
+			const currentEndpoint = config.get<string>('copilot.vision.azureEndpoint');
+
+			const input = await vscode.window.showInputBox({
+				placeHolder: currentEndpoint ? vscode.l10n.t(`Current Endpoint: ${currentEndpoint}`) : vscode.l10n.t('Enter an Azure OpenAI Endpoint. Example: https://example-endpoint.openai.azure.com'),
+				prompt: 'Please enter an endpoint for the selected provider.',
+				validateInput: (text: string) => {
+					return text.length === 0 ? 'Input cannot be empty' : undefined;
+				},
+			});
+
+			if (!input) {
+				return;
+			}
+
+			await config.update('copilot.vision.azureEndpoint', input, vscode.ConfigurationTarget.Global);
+		}
+
 		const chatModel = getModel();
 		const auth = new BaseAuth();
-		
 		const input = vscode.window.createInputBox();
 		input.title = vscode.l10n.t('Set {0} Model', selectedModel.label);
 
@@ -229,7 +246,6 @@ export function subscribe(context: vscode.ExtensionContext) {
 
 		input.show();
 		const currentKey = await context.secrets.get(selectedModel.label);
-	
 		try {
 			const key: string = await new Promise((resolve, reject) => {
 				const disposable = input.onDidAccept(async () => {
