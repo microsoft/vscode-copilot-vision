@@ -111,7 +111,6 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			return codeAction;
 		} else if (codeAction.type === 'refine') {
 			const altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'refine', true, codeAction.isUrl);
-
 			if (!altText) {
 				return;
 			}
