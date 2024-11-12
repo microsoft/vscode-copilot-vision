@@ -33,7 +33,9 @@ export async function generateAltText(model: ChatModel, apiKey: string, imagePat
 		const userQuery = await vscode.window.showInputBox({
 			placeHolder: '(Optional) Specify information about the alt text you want for the image.',
 		});
-
+		if (query === undefined) {
+			return;
+		}
 		query = `${query} ${userQuery}`;
 	}
 
