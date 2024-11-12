@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import { getApi } from '../apiFacade';
 import { ChatModel } from '../extension';
+import { playReceivedSound, playSentSound } from '../audioCue';
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'];
 export async function getBufferAndMimeTypeFromUri(uri: vscode.Uri): Promise<{ buffer: Buffer, mimeType: string } | undefined> {
@@ -27,7 +28,7 @@ function getMimeType(ext: string) {
 }
 
 
-export async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml: boolean, type: 'concise' | 'refine', refineResult: boolean, isUrl?: boolean): Promise<string | undefined> {
+export async function generateAltText(model: ChatModel, apiKey: string, imagePath: string, isHtml: boolean, type: 'concise' | 'refine', sentAudioCueEnabled: boolean, receivedAudioCueEnabled: boolean, isUrl?: boolean): Promise<string | undefined> {
 	let query = 'Generate concise alt text for this image, focusing on key elements while omitting unnecessary visual details, such as colors. Do not include single or double quotes in the alt text.';
 	if (type === 'refine') {
 		const userQuery = await vscode.window.showInputBox({
@@ -37,6 +38,7 @@ export async function generateAltText(model: ChatModel, apiKey: string, imagePat
 		query = `${query} ${userQuery}`;
 	}
 
+	await playSentSound(sentAudioCueEnabled);
 	if (isUrl) {
 		try {
 			const api = getApi(model.provider);
@@ -67,7 +69,7 @@ export async function generateAltText(model: ChatModel, apiKey: string, imagePat
 			model,
 			[buffer],
 			mimeType)).join(' ');
-
+		await playReceivedSound(sentAudioCueEnabled);
 		return altText;
 	} catch (err: unknown) {
 		return;

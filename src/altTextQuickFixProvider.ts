@@ -25,7 +25,7 @@ interface ImageCodeAction extends vscode.CodeAction {
 export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageCodeAction> {
 	private context: vscode.ExtensionContext;
 
-	constructor(context: vscode.ExtensionContext) {
+	constructor(context: vscode.ExtensionContext, private readonly _getConfiguration:(section?: string, scope?: vscode.ConfigurationScope | null) => vscode.WorkspaceConfiguration) {
 		this.context = context;
 	}
 	public static readonly providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
@@ -84,9 +84,13 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 		if (!currentModel || !currentToken) {
 			return;
 		}
-
+		const configuration = this._getConfiguration();
+		const sentAudioCueEnabled: boolean = configuration.get('copilot.vision.altTextRequestedSound') ?? false;
+		const receivedAudioCueEnabled: boolean = configuration.get('copilot.vision.altTextReceivedSound') ?? false;
+		console.log('sentAudioCueEnabled', sentAudioCueEnabled);
+		console.log('receivedAudioCueEnabled', receivedAudioCueEnabled);
 		if (codeAction.type === 'generate') {
-			let altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', false, codeAction.isUrl);
+			let altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'concise', sentAudioCueEnabled, receivedAudioCueEnabled, codeAction.isUrl);
 			if (!altText) {
 				return;
 			}
@@ -110,7 +114,7 @@ export class AltTextQuickFixProvider implements vscode.CodeActionProvider<ImageC
 			codeAction.edit = edit;
 			return codeAction;
 		} else if (codeAction.type === 'refine') {
-			const altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'refine', true, codeAction.isUrl);
+			const altText = await generateAltText(currentModel, currentToken, codeAction.resolvedImagePath, codeAction.isHtml, 'refine', sentAudioCueEnabled, receivedAudioCueEnabled, codeAction.isUrl);
 
 			if (!altText) {
 				return;

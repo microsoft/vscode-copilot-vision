@@ -65,6 +65,16 @@
 					"type": "string",
 					"default": "gpt-4o",
 					"description": "The model for the selected provider."
+				},
+				"copilot.vision.altTextRequestedSound": {
+					"type": "boolean",
+					"default": false,
+					"description": "The sound to play when alt text is requested."
+				},
+				"copilot.vision.altTextReceivedSound": {
+					"type": "boolean",
+					"default": false,
+					"description": "The sound to play when alt text is received."
 				}
 			}
 		},

@@ -35,3 +35,12 @@ Additionally, users can generate or refine alt text for images in markdown, HTML
 
 ## Trademarks
 This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft trademarks or logos is subject to and must follow Microsoft's Trademark & Brand Guidelines. Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos are subject to those third-party's policies.
+
+### 🎵 Audio Attribution
+This project utilizes sound files sourced from **Freesound.org** under the [Creative Commons 0 (CC0)](https://creativecommons.org/publicdomain/zero/1.0/) license. While attribution is not required, we acknowledge the creators out of respect:
+
+1. **Gravel Drop Single.wav** by dichardson
+   - Source: [freesound.org](https://freesound.org/s/570967/)
+
+2. **Message Sent** by Froey_
+   - Source: [freesound.org](https://freesound.org/people/Froey_/sounds/760370/)
