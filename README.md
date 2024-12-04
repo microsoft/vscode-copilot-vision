@@ -33,5 +33,16 @@ Additionally, users can generate or refine alt text for images in markdown, HTML
 4. Drag and drop from anywhere outside VS Code into the chat panel.
 5. From the command palette, select `Copilot Vision: Troubleshoot`. This is very useful for screen reader and beginner users for diagnosing issues in one's workspace.
 
+# How do I use Azure OpenAI?
+1. In VS Code, set `"copilot.vision.provider": "AzureOpenAI"`
+2. Create the required Azure resources: https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/create-resource?pivots=web-portal
+3. Set your full endpoint URL.
+  a. Go to `https://ai.azure.com/`
+  b. Choose "Deployments" from the options.
+  c. Create a deployment if you don't have one. 
+  d. Click on the Name of the depoloyment. Here you'll be able to see the Target URI and Key.
+  e. In VS Code, set `copilot.vision.azureEndpoint` to your Target URI.
+  f. In VS Code, run "Copilot Vision: Set Current Model's API Key" and paste the key from step d.
+
 ## Trademarks
 This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft trademarks or logos is subject to and must follow Microsoft's Trademark & Brand Guidelines. Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos are subject to those third-party's policies.
