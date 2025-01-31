@@ -61,8 +61,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			if (reference.value instanceof vscode.Uri) {
 				const result = await getBufferAndMimeTypeFromUri(reference.value);
 				if (!result) {
-					stream.markdown(vscode.l10n.t(`The file is not an image.`));
-					return { metadata: { command: '' } };
+					continue;
 				}
 				mimeType = result.mimeType;
 				base64Strings.push(result.buffer);

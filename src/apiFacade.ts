@@ -66,7 +66,7 @@ export class OpenAIApi implements ApiFacade {
 
 			for (const data of content) {
 				const base64 = data.toString('base64');
-				prompts.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } });
+				prompts.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'high' } });
 			}
 
 			const openAi = new OpenAI({
