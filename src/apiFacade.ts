@@ -56,6 +56,9 @@ export class OpenAIApi implements ApiFacade {
 				return ['Please provide a valid Open AI token.'];
 			}
 
+			const config = vscode.workspace.getConfiguration();
+			const proxyEndpoint = config.get<string>('copilot.vision.openAIProxyEndpoint');
+
 			const prompts: ChatCompletionContentPart[] = [
 				{ type: 'text', text: request },
 			];
@@ -70,7 +73,7 @@ export class OpenAIApi implements ApiFacade {
 			}
 
 			const openAi = new OpenAI({
-				baseURL: 'https://api.openai.com/v1',
+				baseURL: proxyEndpoint || 'https://api.openai.com/v1',
 				apiKey
 			});
 
