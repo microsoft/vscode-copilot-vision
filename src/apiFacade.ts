@@ -146,7 +146,7 @@ export class OpenRouterApi implements ApiFacade {
 			];
 
 			if (isUrl && url) {
-				prompts.push({type: 'image_url', image_url: { url } });
+				prompts.push({ type: 'image_url', image_url: { url } });
 			}
 
 			for (const data of content) {
