@@ -5,7 +5,7 @@ Vision is currently available in the latest version of VS Code. Read more about 
 Vision for Copilot Preview is an extension that enhances chat interactions by enabling users to leverage advanced vision capabilities. This preview feature allows users to attach images directly as contextual input, enriching conversations and enabling more dynamic, visually-supported responses. 
 
 ### Chat
-For now, users can experience the image attachment flow in the chat panel by using their own OpenAI, Azure OpenAI, Anthropic, or Gemini keys. Get started by easily attaching images from the clipboard or dragging them directly into the chat. 
+For now, users can experience the image attachment flow in the chat panel by using their own OpenAI, Azure OpenAI, Anthropic, Gemini, or OpenRouter keys. Get started by easily attaching images from the clipboard or dragging them directly into the chat. 
 ![Screenshot of a chat exchange. A user asks for HTML and CSS for a landing page. The response provides a basic HTML structure with a header, navigation links (Home, About, Contact), and a link to an external CSS file.](https://raw.githubusercontent.com/microsoft/vscode-copilot-vision/refs/heads/main/assets/demo.gif)
 
 ### Quick Fixes
@@ -21,7 +21,7 @@ Additionally, users can generate or refine alt text for images in markdown, HTML
 - Troubleshoot (screenshots the VS Code window and sends it to chat).
 
 ### Settings
-- `copilot.vision.provider`: The selected provider (currently limted to OpenAI, Anthropic, and Gemini).
+- `copilot.vision.provider`: The selected provider (currently limited to OpenAI, Anthropic, Gemini, AzureOpenAI, and OpenRouter).
 - `copilot.vision.model`: The model for the currently selected provider.
 
 ### Notes
@@ -44,6 +44,16 @@ Additionally, users can generate or refine alt text for images in markdown, HTML
   d. Click on the Name of the depoloyment. Here you'll be able to see the Target URI and Key.
   e. In VS Code, set `copilot.vision.azureEndpoint` to your Target URI.
   f. In VS Code, run "Copilot Vision: Set Current Model's API Key" and paste the key from step d.
+
+# How do I use OpenRouter?
+1. In VS Code, set `"copilot.vision.provider": "OpenRouter"`
+2. Get an API key from https://openrouter.ai/
+3. In VS Code, run "Copilot Vision: Set a Provider and Model" command.
+4. Select "OpenRouter" from the provider list.
+5. Enter a vision-capable model name (e.g., `openai/gpt-4o`, `anthropic/claude-3.5-sonnet`, `google/gemini-pro-vision`).
+6. When prompted, enter your OpenRouter API key.
+
+OpenRouter provides unified access to multiple AI models through a single API. You can browse available vision models and their pricing at https://openrouter.ai/models?q=vision
 
 ## Trademarks
 This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft trademarks or logos is subject to and must follow Microsoft's Trademark & Brand Guidelines. Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos are subject to those third-party's policies.

@@ -30,6 +30,7 @@
 		"anthropic",
 		"gemini",
 		"claude",
+		"openrouter",
 		"vision",
 		"accessibility",
 		"images",
@@ -51,7 +52,8 @@
 						"OpenAI",
 						"Anthropic",
 						"Gemini",
-						"AzureOpenAI"
+						"AzureOpenAI",
+						"OpenRouter"
 					],
 					"default": "OpenAI",
 					"description": "The selected provider."
