@@ -134,6 +134,53 @@ export class GeminiApi implements ApiFacade {
 	}
 }
 
+export class OpenRouterApi implements ApiFacade {
+	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean, url?: string): Promise<string[]> {
+		try {
+			if (apiKey === undefined) {
+				return ['Please provide a valid OpenRouter API token.'];
+			}
+
+			const prompts: ChatCompletionContentPart[] = [
+				{ type: 'text', text: request },
+			];
+
+			if (isUrl && url) {
+				prompts.push({ type: 'image_url', image_url: { url } });
+			}
+
+			for (const data of content) {
+				const base64 = data.toString('base64');
+				prompts.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'high' } });
+			}
+
+			const openAi = new OpenAI({
+				baseURL: 'https://openrouter.ai/api/v1',
+				apiKey
+			});
+
+			const result = await openAi.chat.completions.create({
+				model: provider.model,
+				messages: [
+					{ role: 'user', content: prompts }
+				]
+			});
+
+			const messages = [];
+
+			for (const choice of result.choices) {
+				if (choice.message.content) {
+					messages.push(choice.message.content);
+				}
+			}
+			return messages;
+		} catch (error) {
+			console.error('Error in OpenRouterApi:', error);
+			throw error;
+		}
+	}
+}
+
 export class AzureOpenAIApi implements ApiFacade {
 	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean, url?: string): Promise<string[]> {
 		try {
@@ -197,6 +244,8 @@ export function getApi(type: ProviderType): ApiFacade {
 			return new OpenAIApi();
 		case ProviderType.AzureOpenAI:
 			return new AzureOpenAIApi();
+		case ProviderType.OpenRouter:
+			return new OpenRouterApi();
 		default:
 			throw new Error('Invalid model type');
 	}

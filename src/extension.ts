@@ -18,7 +18,8 @@ export enum ProviderType {
 	Anthropic = 'Anthropic',
 	OpenAI = 'OpenAI',
 	Gemini = 'Gemini',
-	AzureOpenAI = 'AzureOpenAI'
+	AzureOpenAI = 'AzureOpenAI',
+	OpenRouter = 'OpenRouter'
 }
 
 export interface ChatModel {
@@ -198,7 +199,8 @@ export function subscribe(context: vscode.ExtensionContext) {
 			{ label: ProviderType.Anthropic },
 			{ label: ProviderType.OpenAI },
 			{ label: ProviderType.Gemini },
-			{ label: ProviderType.AzureOpenAI }
+			{ label: ProviderType.AzureOpenAI },
+			{ label: ProviderType.OpenRouter }
 		];
 
 		const selectedModel = await vscode.window.showQuickPick(providers, {
