@@ -142,7 +142,7 @@
 		"@azure/identity": "^4.4.1",
 		"@google/generative-ai": "^0.21.0",
 		"@vscode/prompt-tsx": "^0.2.11-alpha",
-		"axios": "^1.12.0",
+		"axios": "^1.13.5",
 		"dotenv": "^16.4.5",
 		"openai": "^4.67.3"
 	},
