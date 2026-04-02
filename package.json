@@ -56,6 +56,11 @@
 					"default": "OpenAI",
 					"description": "The selected provider."
 				},
+				"copilot.vision.openAIProxyEndpoint": {
+					"type": "string",
+					"default": "",
+					"description": "OpenAI Proxy Endpoint - A proxy endpoint for OpenAI."
+				},
 				"copilot.vision.azureEndpoint": {
 					"type": "string",
 					"default": "",
