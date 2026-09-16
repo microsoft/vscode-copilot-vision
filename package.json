@@ -61,6 +61,11 @@
 					"default": "",
 					"description": "An endpoint specifically for Azure OpenAI."
 				},
+				"copilot.vision.baseUrl": {
+					"type": "string",
+					"default": "",
+					"description": "Base URL."
+				},
 				"copilot.vision.model": {
 					"type": "string",
 					"default": "gpt-4o",

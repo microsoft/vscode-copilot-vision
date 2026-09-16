@@ -19,7 +19,7 @@ export interface ApiFacade {
 export class AnthropicApi implements ApiFacade {
 	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean): Promise<string[]> {
 		try {
-			const client = new Anthropic({ apiKey: apiKey });
+			const client = new Anthropic({ baseUrl: provider.baseUrl, apiKey: apiKey });
 
 			const prompts: Array<TextBlockParam | ImageBlockParam> = [
 				{ type: 'text', text: request },
@@ -70,7 +70,7 @@ export class OpenAIApi implements ApiFacade {
 			}
 
 			const openAi = new OpenAI({
-				baseURL: 'https://api.openai.com/v1',
+				baseURL: provider.baseUrl || 'https://api.openai.com/v1',
 				apiKey
 			});
 

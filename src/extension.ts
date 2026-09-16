@@ -22,6 +22,7 @@ export enum ProviderType {
 }
 
 export interface ChatModel {
+	baseUrl?: string;
 	provider: ProviderType;
 	model: string;
 }
@@ -171,9 +172,10 @@ export async function initializeModelAndToken(stream?: vscode.ChatResponseStream
 
 export function getModel(): ChatModel {
 	const config = vscode.workspace.getConfiguration();
+	const currentBaseUrl = config.get<ProviderType>('copilot.vision.baseUrl');
 	const currentModel = config.get<string>('copilot.vision.model');
 	const currentProvider = config.get<ProviderType>('copilot.vision.provider');
-	return { provider: currentProvider || ProviderType.OpenAI, model: currentModel || 'gpt-4o' };
+	return { baseUrl: currentBaseUrl || undefined, provider: currentProvider || ProviderType.OpenAI, model: currentModel || 'gpt-4o' };
 }
 
 export function subscribe(context: vscode.ExtensionContext) {
