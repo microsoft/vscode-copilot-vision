@@ -1,15 +1,15 @@
 {
 	"name": "vscode-copilot-vision",
-	"publisher": "ms-vscode",
+	"publisher": "DsafLove",
 	"displayName": "Vision for Copilot Preview",
 	"description": "A chat extension providing vision capabilities in VS Code, with a focus on accessibility.",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/microsoft/vscode-copilot-vision"
+		"url": "https://github.com/DsafLove/vscode-copilot-vision"
 	},
 	"icon": "assets/vision-eye-logo.png",
 	"bugs": {
-		"url": "https://github.com/microsoft/vscode-copilot-vision/issues"
+		"url": "https://github.com/DsafLove/vscode-copilot-vision/issues"
 	},
 	"enabledApiProposals": [
 		"chatReferenceBinaryData",
@@ -153,15 +153,26 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",
-		"@types/node": "^20.5.9",
+		"@types/mocha": "^10.0.10",
+		"@types/node": "^22.20.3",
 		"@types/vscode": "1.94.0",
 		"@typescript-eslint/eslint-plugin": "^8.57.0",
 		"@typescript-eslint/parser": "^8.57.0",
+		"@vscode/dts": "^0.4.1",
+		"@vscode/test-cli": "^0.0.15",
+		"@vscode/test-electron": "^3.1.0",
+		"@vscode/test-web": "^0.0.81",
+		"@vscode/vsce": "^4.0.0",
 		"eslint": "^10.8.0",
 		"eslint-plugin-headers": "^1.3.4",
+		"mocha": "^12.0.1",
 		"ts-loader": "^9.5.1",
-		"typescript": "^5.5.2",
+		"typescript": "^5.9.3",
 		"webpack": "^5.105.1",
 		"webpack-cli": "^5.1.4"
+	},
+	"allowScripts": {
+		"@vscode/vsce-sign@2.1.0": true,
+		"@playwright/browser-chromium@1.63.0": true
 	}
 }

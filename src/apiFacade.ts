@@ -19,7 +19,7 @@ export interface ApiFacade {
 export class AnthropicApi implements ApiFacade {
 	async create(apiKey: string, request: string, provider: ChatModel, content: Buffer[], mimeType: string, isUrl?: boolean): Promise<string[]> {
 		try {
-			const client = new Anthropic({ baseUrl: provider.baseUrl, apiKey: apiKey });
+			const client = new Anthropic({ baseURL: provider.baseUrl, apiKey: apiKey });
 
 			const prompts: Array<TextBlockParam | ImageBlockParam> = [
 				{ type: 'text', text: request },
@@ -118,7 +118,7 @@ export class GeminiApi implements ApiFacade {
 			}
 
 			const genAI = new GoogleGenerativeAI(apiKey);
-			const model = genAI.getGenerativeModel({ model: provider.model }); // 'gemini-1.5-flash'
+			const model = genAI.getGenerativeModel({ model: provider.model }, { baseUrl: provider.baseUrl }); // 'gemini-1.5-flash'
 			const result = await model.generateContent([request, ...imageParts]);
 
 			const messages = [];
@@ -147,7 +147,7 @@ export class AzureOpenAIApi implements ApiFacade {
 			}
 			const apiVersion = "2024-08-01-preview";
 			const model = provider.model; // gpt-4o-mini or Gpt4
-			const client = new AzureOpenAI({ endpoint, apiVersion, deployment: model, apiKey });
+			const client = new AzureOpenAI({ baseURL: provider.baseUrl, endpoint, apiVersion, deployment: model, apiKey });
 			
 			const prompts: ChatCompletionUserMessageParam[] = [
 				{ role: 'user', content: request },

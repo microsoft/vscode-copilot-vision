@@ -9,35 +9,40 @@ import {
 	l10n,
 	window,
 	workspace,
+	WorkspaceConfiguration,
+	type InputBox,
 } from 'vscode';
+import type { ApiFacade } from '../apiFacade';
 import { getApi } from '../apiFacade';
-import { ProviderType } from '../extension';
+import { ProviderType, type ChatModel } from '../extension';
 
 export class BaseAuth {
 	private readonly _disposable: Disposable;
 
 	constructor() {
-		this._disposable = new Disposable(() => {});
+		this._disposable = new Disposable((): void => {});
 	}
 
 	async validateKey(key: string, inputModel?: string): Promise<boolean> {
 		try {
-			const config = workspace.getConfiguration();
-			const model = config.get<string>('copilot.vision.model');
-			const provider = config.get<ProviderType>('copilot.vision.provider');
+			const config: WorkspaceConfiguration = workspace.getConfiguration();
+			const model: string | undefined = config.get<string>('copilot.vision.model');
+			const provider: ProviderType | undefined = config.get<ProviderType>('copilot.vision.provider');
+			const baseUrl: string | undefined = config.get<string>('copilot.vision.baseUrl');
 		
 			if (!model || !provider) {
 				throw new Error('Invalid Model');
 			}
 
-			const api = getApi(provider);
+			const api: ApiFacade = getApi(provider);
 
-			const ChatModel = {
+			const ChatModel = <ChatModel>{
+				baseUrl,
 				provider,
 				model: inputModel || model,
 			};
 
-			const result = await api.create(key, 'test', ChatModel, [], 'image/png');
+			const result: string[] = await api.create(key, 'test', ChatModel, [], 'image/png');
 			if (!result) {
 				throw new Error('Invalid API key');
 			}
@@ -48,21 +53,21 @@ export class BaseAuth {
 	}
 
 	async setAPIKey(name: string, context: ExtensionContext): Promise<void> {
-		const input = window.createInputBox();
+		const input: InputBox = window.createInputBox();
 		input.title = l10n.t('Set {0} API Key', name);
 
 		// Get API Key
-		const placeholderText = l10n.t('Enter your {0} API key', name);
+		const placeholderText: string = l10n.t('Enter your {0} API key', name);
 		input.placeholder = placeholderText;
 		input.ignoreFocusOut = true;
-		input.onDidChangeValue((value) => {
+		input.onDidChangeValue((value: string): void => {
 			input.validationMessage = undefined;
 		});
 
 		input.show();
 		try {
-			const key: string = await new Promise((resolve, reject) => {
-				const disposable = input.onDidAccept(async () => {
+			const key: string = await new Promise((resolve: (value: string) => void, reject: (reason?: any) => void): void => {
+				const disposable = input.onDidAccept(async (): Promise<void> => {
 					input.busy = true;
 					input.enabled = false;
 					if (!input.value || !(await this.validateKey(input.value))) {
@@ -76,7 +81,7 @@ export class BaseAuth {
 					input.hide();
 				});
 
-				const hideDisposable = input.onDidHide(async () => {
+				const hideDisposable: Disposable = input.onDidHide(async (): Promise<void> => {
 					if (!input.value || !(await this.validateKey(input.value))) {
 						disposable.dispose();
 						hideDisposable.dispose();
@@ -86,7 +91,7 @@ export class BaseAuth {
 			});
 			
 			context.secrets.store(name, key);
-		} catch (e) {
+		} catch (e: any) {
 			console.error(e);
 		}
 	}
@@ -96,11 +101,11 @@ export class BaseAuth {
 	}
 
 	async getKey(name: string, context: ExtensionContext): Promise<string | undefined> {
-		const key = await context.secrets.get(name);
+		const key: string | undefined = await context.secrets.get(name);
 		return key;
 	}
 
-	dispose() {
+	dispose(): void {
 		this._disposable.dispose();
 	}
 }
